@@ -2,6 +2,8 @@
 /*ALL THE PROGRAM IS DONE BY DARIO LOBOS, I TOOK SOME PARTS FROM EXAMPLES, 1O/MAR/2025
  * THE PROGRAM IS TO CONTROL 3 DEVICES TO CHARGE A BATTERY.
  * 
+ * BOARD USED IS ARDUINO NANO 
+ * 
  * DEVICE 1: IS A TRANSFORMER WITH A RECTIFIER TO HAVE DC CURRENT AND ELECTRICITY COMES FROM 
  * THE POWER SUPPLY NET. THIS CAN CHARGE AFTER A TIME SET BY THE USER. TO CHARGE BATTERY WHEN 
  * THE OTHER DEVICES DON'T REACH THE NEEDED FOR ALL NIGHT. CAN DE SET WITHOUT TIME AND BATTERY 
@@ -19,11 +21,11 @@
  * I DID A MOSFET CIRCUIT FOR THIS SYSTEM AND IS HERE(Revised, added FILTERS )
  * 
  * https://drive.google.com/file/d/1AJ6Pxyg2a4SylqBItQMUnToGb4nMWeYA/view?usp=drivesdk
-
-
+ *
+ *
  * https://drive.google.com/file/d/1AI77g_Waz6oLzmIdAXDt1WZzXRl4m_--/view?usp=drivesdk
  * 
-MUST BE ADJUSTED ACCORDING DEVICE CURRENT AND MOSFET USED, THERE RESISTOR CAN MORE AND LESS FIT  
+ * MUST BE ADJUSTED ACCORDING DEVICE CURRENT AND MOSFET USED, THERE RESISTOR CAN MORE AND LESS FIT  
  * AN IRF520.
  * 
  * CIRCUITS NEED CAPACITORS AND GROUND RESISTORS TO MAKE LESS THAN 60 HRZ LOW PASS FILTER, OTHER RESISTOR TO 
@@ -32,18 +34,17 @@ MUST BE ADJUSTED ACCORDING DEVICE CURRENT AND MOSFET USED, THERE RESISTOR CAN MO
  * FOR EXAMPLE ONE RESISTOR 12K  TO SIGNAL IN (BATTERY AND DEVICES VOLTAGE) AND 47 uf capacitor and 
  * a 5.5K (with and adjust potenciometer small) to do a voltage divider 16/5. Capacitor is to ground 
  * in parallelto R2 of voltage divider. 
-**THIS IS THE VOLTAGE DIVIDER CIRCUIT WITH A ZENER 5V AND A FUSE
-* 
-* https://drive.google.com/file/d/1ANG8-GtRzkY1PIZ6kYH60ZUBgf1YUTnj/view?usp=drivesdk
-
-*
- * ARDUINO IS CHARGING FROM THE BATTERY  USING AN LM 7805 OR 340 WHICH IS THE SIMPLEST OPTION.
-
-OPERATIONAL AMPLIFIERS NEEDS LM315 TO SET IT TO 10 VOLTS OR 12 VOLTS.
- " 
- *THE MICROCONTROLLER SEND ALL THE DATA USING FIRMATA AND WITH PHYTON IS
- " HANDLED TO MAKE HISTORIAL OF INFO AND GRAPHICS WiTH ThINKER AND PYFIRMATA.
+ * THIS IS THE VOLTAGE DIVIDER CIRCUIT WITH A ZENER 5V AND A FUSE
  * 
+ * https://drive.google.com/file/d/1ANG8-GtRzkY1PIZ6kYH60ZUBgf1YUTnj/view?usp=drivesdk
+ *
+ *
+ * ARDUINO IS CHARGING FROM THE BATTERY  USING AN LM 7805 OR 340 WHICH IS THE SIMPLEST OPTION.
+ *
+ *  OPERATIONAL AMPLIFIERS NEEDS LM315 TO SET IT TO 10 VOLTS OR 12 VOLTS.
+ " 
+ * THE MICROCONTROLLER SEND ALL THE DATA USING FIRMATA AND WITH PHYTON IS
+ " HANDLED TO MAKE HISTORIAL OF INFO AND GRAPHICS WiTH ThINKER AND PYFIRMATA.
  * Firmata is a generic protocol for communicating with microcontrolle
  * from software on a host computer. It is intended to work with
  * any host computer software package.
@@ -695,7 +696,7 @@ break;
 // initialize constant for pins to read voltages and mosfets
 // A4 and A5 ARE RESERVED FOR PIN EXTENDER BOARD, SERIAL PINS
 
-const int MOSFET_1_PIN = A0 ;
+const int MOSFET_1_PIN = A6 ;
 int mosfet1Signal=0; // signal to send to the mosfet; 
 const int MOSFET_2_PIN = 9 ; // digital pin can be written as analog
 int mosfet2Signal=0;
@@ -711,7 +712,7 @@ float device2ChargerRead;
 const int DEVICE_CHARGER_VOLTAGE_3 = A2 ;  
 float device3ChargerRead;
 
-const int PHOTO_RESISTOR = MCP_PIN10 ; //TO EXTENDER BOARD NEEDS mcp.ANALOG READ to read write
+const int PHOTO_RESISTOR = A7 ; 
 
 
 void setup()
@@ -858,44 +859,6 @@ lcdMessage (LCD_FULL_BATTERY,FULL_LENGHT, batteryState );
 while (PC_CONTROL_STATE== HIGH) {
 //
 // pc program that will be only call back process and read check.
-
-while (Firmata.available()) {
-    Firmata.processInput();
-}
-  byte i;
-
-
-  for (i = 0; i < TOTAL_PORTS; i++) {
-    outputPort(i, readPort(i,0xff));
-    
-  }
-for (i = 0; i < TOTAL_ANALOG_PINS; i++) {
-outputAlogPort(i, analogRead(i));
-    
-  }
-
-  while (Firmata.available()) {
-    Firmata.processInput();
-
-}
-PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
-}
-// reset is necessary because the computer
-// can change pins or ports and modes of operation  so is necessary hardware with a jumper and reset pin.
-// create a standard reset function
-// THE RESET PIN MUST BE CONNECTED TO THE MCP23X17 PHYSICAL PIN NR. 8 (pin ID 15) 
-
-mcp.digitalWrite(MCP_PIN15, HIGH);
-
-
-  }  
-
-
-
-
-
-// END OF FILE
-ack process and read check.
 
 while (Firmata.available()) {
     Firmata.processInput();
