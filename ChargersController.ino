@@ -64,7 +64,12 @@ Basic program copy from examples,with analog addition and remote control switch 
  */
  //-----------------SERIAL TRANSFER PART -----------------
 
+#include <Boards.h>
 #include <Firmata.h>
+#include <FirmataConstants.h>
+#include <FirmataDefines.h>
+#include <FirmataMarshaller.h>
+#include <FirmataParser.h>
 
 // ASSIGNMENT OF ONE PICK LOCKED FOR REMOTE CONTROL 
 
