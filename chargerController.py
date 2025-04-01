@@ -23,16 +23,17 @@ import os
 # SERVO = 4          # digital pin in SERVO mode
 # INPUT_PULLUP = 11  # Same as INPUT, but with the pin's internal pull-up resistor enabled
 #         self.board.digital[pin].mode = self.board.INPUT  // throw error
-#         self.board.digital[pin].mode = OUTPUT  MUST BE THIS  
-#         elif mode == "OUTPUT":
+#         self.board.digital[pin].mode = INPUT  MUST BE THIS  
+#         elif mode == "INPUT":
 #         self.board.digital[pin].mode = self.board.OUTPUT  // throw error
 #         self.board.digital[pin].mode = OUTPUT  MUST BE THIS
-#         elif mode == "PWM":
+#         elif mode == "OUTPUT":
 #         self.board.digital[pin].mode = self.board.PWM  // throw error
 #         self.board.digital[pin].mode = PWM  MUST BE THIS  
-#         elif mode == "SERVO":
+#         elif mode == "PWM":
 #         self.board.digital[pin].mode = self.board.SERVO // throw error
 #         self.board.digital[pin].mode = SERVO  MUST BE THIS
+#         elif mode == "SERVO":
 
 import easyarduino
 from time import sleep
@@ -119,6 +120,10 @@ mainFrame.grid(column=0, row=0, sticky=(N,W,E,S))
 
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
+mainFrame.columnconfigure(0, weight=1)
+mainFrame.rowconfigure(0, weight=1)
+
+photoFrame = ttk.Frame(mainFrame,padding ="3 3 12 12").grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
 
 def onPressBoardUnlock():
   startButton.state('disabled')
@@ -242,25 +247,25 @@ ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2, sticky=(W,E,N,
 
 #function to resize image when window size change
 def boardResize(event):
-   boardlabel=event.widget
-   _imageWidth = int(root.width()/12)
-   _imageHeight = int(root.height()/12)
+   photoFrame.boardlabel=event.widget
+   _imageWidth = int(event.width * 0.8)
+   _imageHeight = int(event.height * 0.8)
    global sizeChangedBoardImg, sizeChangedBoardPho
    sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth, _imageHeight))
    sizeChangedBoardPho= ImageTk.PhotoImage(sizeChangedBoardImg)
-   boardlabel.config(image=sizeChangedBoardPho)
+   photoFrame.boardlabel.config(image=sizeChangedBoardPho)
 #   avoid garbage collector
-   boardlabel.image = sizeChangedBoardPho
+   photoFrame.boardlabel.image = sizeChangedBoardPho
 
 # Label for image
 boardImage = Image.open('chargerController_bb.png')
 resizedboardImage=boardImage.copy().resize((int(rootSizerWidth/2),int(rootSizerHeight/2)))
 dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
-boardlabel= ttk.Label(mainFrame,image=photoBoard).grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
-boardlabel.pack()
-boardlabel.bind('<Configure>',boardResize)
-boardlabel.pack(fill=BOTH, expand=YES)
+boardlabel= ttk.Label(photoFrame,image=photoBoard).grid(sticky=(W,E,N,S))
+photoFrame.boardlabel.pack()
+phothoFrame.boardlabel.bind('<Configure>',boardResize)
+photoFrame.boardlabel.pack(fill=BOTH, expand=YES)
 
 # Buttons and labels to control board
 
