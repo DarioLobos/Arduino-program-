@@ -243,9 +243,7 @@ ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2, sticky=(W,E,N,
 #function to resize image when window size change
 def boardResize(event):
    boardlabel=event.widget
-   _screenWidth = root.winfo_screenwidth()
    _imageWidth = int(root.width()/12)
-   _screenHeight = root.winfo.screenheight()
    _imageHeight = int(root.height()/12)
    global sizeChangedBoardImg, sizeChangedBoardPho
    sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth, _imageHeight))
@@ -256,7 +254,7 @@ def boardResize(event):
 
 # Label for image
 boardImage = Image.open('chargerController_bb.png')
-resizedboardImage=boardImage.copy().resize((100,50))
+resizedboardImage=boardImage.copy().resize((int(rootSizerWidth/2),int(rootSizerHeight/2)))
 dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
 boardlabel= ttk.Label(mainFrame,image=photoBoard).grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
