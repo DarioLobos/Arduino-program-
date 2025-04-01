@@ -259,7 +259,7 @@ def boardResize(event):
 
 # Label for image
 boardImage = Image.open('chargerController_bb.png')
-resizedboardImage=boardImage.copy().resize((int(rootSizerWidth/2),int(rootSizerHeight/2)))
+resizedboardImage=boardImage.copy().resize((int(photoFrame.winfo_width()*0.8),int(photoFrame.winfo_height()•0.8)))
 dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
 boardlabel= ttk.Label(photoFrame,image=photoBoard).grid(sticky=(W,E,N,S))
