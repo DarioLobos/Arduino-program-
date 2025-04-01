@@ -8,8 +8,8 @@ import Tkinter
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
-# from PIL import ImageTk, Image
-
+from PIL import ImageTk, Image
+import os
 # import pyfirmata2
 # import pymata
 # in the easyarduino library I had to modidify the import to firmata2
@@ -102,8 +102,21 @@ controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
 root = Tk()
 root.title("Program to remote control Battery charger and Handle data")
 root.minsize(600,600)
+ScreenWidth = root.winfo_screenwidth()
+ScreenHeight = root.winfo_screenheight()
+
+rootSizerWidth= int(ScreenWidth*0.8)
+rootSizerHeight= int(ScreenHeight*0.8)
+
+topLeftPosition=(int((ScreenWidth- rootSizerWidth)/2),int((ScreenHeight- rootSizerHeight)/2))
+
+root.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
+
+# check window size to make image size
+
 mainFrame = ttk.Frame(root, padding ="3 3 12 12")
 mainFrame.grid(column=0, row=0, sticky=(N,W,E,S))     
+
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
 
@@ -227,10 +240,29 @@ ttk.Label(mainFrame, text= "Current value").grid(column=2,row=2, sticky=(W,E,N,S
 ttk.Label(mainFrame, text= "Value to update").grid(column=3,row=2, sticky=(W,E,N,S))
 ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2, sticky=(W,E,N,S))
 
-# Label for image
-boardImage = PhotoImage(file='chargerController_bb.png')
+#function to resize image when window size change
+def boardResize(event):
+   boardlabel=event.widget
+   _screenWidth = root.winfo_screenwidth()
+   _imageWidth = int(root.width()/12)
+   _screenHeight = root.winfo.screenheight()
+   _imageHeight = int(root.height()/12)
+   global sizeChangedBoardImg, sizeChangedBoardPho
+   sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth, _imageHeight))
+   sizeChangedBoardPho= ImageTk.PhotoImage(sizeChangedBoardImg)
+   boardlabel.config(image=sizeChangedBoardPho)
+#   avoid garbage collector
+   boardlabel.image = sizeChangedBoardPho
 
-ttk.Label(mainFrame,image=boardImage).grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
+# Label for image
+boardImage = Image.open('chargerController_bb.png')
+resizedboardImage=boardImage.copy().resize((100,50))
+dynamicChangeBoardImg=boardImage.copy()
+photoBoard=ImageTk.PhotoImage(resizedboardImage)
+boardlabel= ttk.Label(mainFrame,image=photoBoard).grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
+boardlabel.pack()
+boardlabel.bind('<Configure>',boardResize)
+boardlabel.pack(fill=BOTH, expand=YES)
 
 # Buttons and labels to control board
 
