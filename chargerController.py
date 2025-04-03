@@ -282,8 +282,8 @@ ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2, sticky=(W,E,N,
 #function to resize image when window size change PENDING USE FRAME INSTEAD OF LABEL
 def boardResize(event):
    boardlabel = event.widget
-   _imageWidth = rootSizerWidth/3 
-   _imageHeight = rootSizeHeight/3
+   _imageWidth = event.width 
+   _imageHeight = event.height
    global sizeChangedBoardImg, sizeChangedBoardPho
    sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth,_imageHeight))
    sizeChangedBoardPho= ImageTk.PhotoImage(sizeChangedBoardImg)
@@ -293,7 +293,6 @@ def boardResize(event):
 
 # Label for image
 boardImage = Image.open('chargerController_bb.png')
-
 imageWidth = int(rootSizerWidth * 0.4)
 imageHeight = int(rootSizerHeight * 0.4)
 resizedboardImage=boardImage.copy().resize((imageWidth,imageHeight))
@@ -301,7 +300,7 @@ dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
 boardlabel= ttk.Label(photoFrame,image=photoBoard)
 boardlabel.bind('<Configure>',boardResize)
-boardlabel.grid(column =0, row =0, sticky=(W,E,N,S))
+boardlabel.pack()
 
 photoFrame.grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
 
