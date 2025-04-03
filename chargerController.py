@@ -21,7 +21,8 @@ import os
 #
 # def __init__(self, port, layout=None, baudrate=57600, name=None, timeout=None, debug=False):
 #        while port_available== None:
-
+# ALL THIS IS PENDING TO CHECK WHEN I TEST THE BOARD, NOW I AM IN LAYOUT
+# WITH TRY I SOLVED THE COMPILATION PROBLEM THAT DONT LET CHECK LAYOUT
 # ALSO I RETURN NONE IN GET_BOARD_INFO TO USE IT AS AVAILABILITY
 #    # --- Get board information ---
 #    def get_board_info(self):
@@ -100,36 +101,40 @@ except:
     
 #ARDUINO PORTS IN ARDUINO PROGRAM .INO
 # const int PC_CONTROL_PIN= 6
-# const int MOSFET_1_PIN = A6 ;
-# const int MOSFET_2_PIN = 9 ; // digital pin can be written as analog
-# const int MOSFET_3_PIN = 10 ;  // digital pin can be written as analog
-# const int BATTERY_VOLTAGE_PIN= A3 ;
-# const int DEVICE_CHARGER_VOLTAGE_1 = A0 ;
-# const int DEVICE_CHARGER_VOLTAGE_2 = A1 ;  
-# const int DEVICE_CHARGER_VOLTAGE_3 = A2 ;  
-# const int PHOTO_RESISTOR = A7 ;
+# const int mosfet_1_pin = A6 ;
+# const int mosfet_2_pin = 9 ; // digital pin can be written as analog
+# const int mosfet_3_pin = 10 ;  // digital pin can be written as analog
+# const int battery_voltage_pin= A3 ;
+# const int device_charger_voltage_1 = A0 ;
+# const int device_charger_voltage_2 = A1 ;  
+# const int device_charger_voltage_3 = A2 ;  
+# const int photo_resistor = A7 ;
 
 # TAKING THE SAME NAMES
 PC_CONTROL_PIN= 6
-MOSFET_1_PIN = A6
-MOSFET_2_PIN = 9
-MOSFET_3_PIN = 10
-BATTERY_VOLTAGE_PIN= A3
-DEVICE_CHARGER_VOLTAGE_1 = A0
-DEVICE_CHARGER_VOLTAGE_2 = A1
-DEVICE_CHARGER_VOLTAGE_3 = A2   
-PHOTO_RESISTOR = A7 
+mosfet_1_pin = A6
+mosfet_2_pin = 9
+mosfet_3_pin = 10
+battery_voltage_pin= A3
+device_charger_voltage_1 = A0
+device_charger_voltage_2 = A1
+device_charger_voltage_3 = A2   
+photo_resistor = A7 
 
 
 
 # Assign The mode of PC_CONTROL_PIN for control the board with a button 
+
 PC_CONTROL_STATE =0
-controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+
+if controller!=None:
+    controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+
 
 # Define main widget environment dimensions
 root = Tk()
 root.title("Program to remote control Battery charger and Handle data")
-root.minsize(600,600)
+root.minsize(300,300)
 ScreenWidth = root.winfo_screenwidth()
 ScreenHeight = root.winfo_screenheight()
 
@@ -142,51 +147,30 @@ topLeftPosition=(int((ScreenWidth- rootSizerWidth)/2),int((ScreenHeight- rootSiz
 
 root.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
 
-root.columnconfigure(0, weight=1)
-root.rowconfigure(0, weight=1)
-
 def controllerAvalable(event):
-  mainFrame=event.widget
-  global controller
-  try:
-      controller = ArduinoController(port= ArduinoPort)
-  except:
-      controller= None
+    mainFrame=event.widget
+    global controller
+    try:
+        controller = ArduinoController(port= ArduinoPort)
+    except:
+        controller= None
+    else:
+        controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
 
 mainFrame = ttk.Frame(root, padding ="3 3 12 12")
-mainFrame.columnconfigure(0, weight=1)
-mainFrame.rowconfigure(0, weight=1)
-mainFrame.grid(column=0, row=0, sticky=(N,W,E,S))
-mainFrame.columnconfigure(1, weight=1)
-mainFrame.columnconfigure(2, weight=1)
-mainFrame.columnconfigure(3, weight=1)
-mainFrame.columnconfigure(4, weight=1)
-mainFrame.columnconfigure(5, weight=4)
-mainFrame.rowconfigure(1, weight=2)             
-mainFrame.rowconfigure(2, weight=1)
-mainFrame.rowconfigure(3, weight=1)
-mainFrame.rowconfigure(4, weight=1)
-mainFrame.rowconfigure(5, weight=1)
-mainFrame.rowconfigure(6, weight=1)
-mainFrame.rowconfigure(7, weight=1)
-mainFrame.rowconfigure(8, weight=1)
-mainFrame.rowconfigure(9, weight=1)
-mainFrame.rowconfigure(10, weight=1)
-mainFrame.rowconfigure(11, weight=1)
-mainFrame.rowconfigure(12, weight=2)
 
 # Bind to check availability in any loop
 mainFrame.bind('<Configure>',controllerAvalable)
 
 # Make an frame special for the image to can resize it well
 
-photoFrame = ttk.Frame(mainFrame, padding ="3 3 12 12").grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
+photoFrame = ttk.Frame(mainFrame, padding ="3 3 12 12")
 
 def onPressBoardUnlock():
-  mainframe.startButton.state('disabled')
+  mainFrame.startButton.state('disabled')
   if PC_CONTROL_STATE ==1:
      PC_CONTROL_STATE =O
-     mainframe.startButton.config(text="Disabbled")
+     mainframe.startButton.config(text="Disabled")
      controller.digital_write(pin=PC_CONTROL_PIN, state=False)
      sleep(5)
      startButton.state('enabled')
@@ -197,6 +181,7 @@ def onPressBoardUnlock():
     controller.digital_write(pin=PC_CONTROL_PIN, state=True)
     sleep(5)
     mainFrame.startButton.state('enabled')
+
 # variables for button text
 
 buttonMos1Stg = StringVar()
@@ -206,23 +191,23 @@ batteryVoltStg = StringVar()
 trafoVoltStg = StringVar()
 solarVoltStg = StringVar()
 windVoltStg = StringVar()
-photoResistorSrg =StringVar()
+photoResistorStg =StringVar()
 
 def pinCurrentValue(pin):
   if controller!= None:
-    if controller.board.digital[pin].mode==INPUT :
-      pinHandling = controller.digital_read(pin)
-    return pinHandling
+    if isPinMode==INPUT :
+        pinHandling = controller.digital_read(pin)
+        return pinHandling
     else:
-      pinHandling = controller.analog_read(pin)
-    return pinHandling
+        pinHandling = controller.analog_read(pin)
+        return pinHandling
   else:
     return "0.000"
 
 # IN CONCORDANCE WITH ARDUINO CODE MUST BE MODIFIED TOGETHER IF NECESSARY
 # THIS IS THE ARDUINO CODE             
 # const int PHOTO_PRESISTOR_LIMIT = 512; // VALUE MUST BE TESTED AND DETERMINE THE SOLAR PANNEL SWITCH OFF.  
-# int PHOTO_RESISTOR_READ=0;
+# int photo_resistor_READ=0;
 # const float BAT_FULL_VOLTS = 13.7;             
 # float batteryState = 0;
 # const float BAT_LOW_VOLTS = 12.5 ;
@@ -262,12 +247,14 @@ def convertionToWrite(entryValue):
   writeValue= int(float_entryValue*5/255)
   return writeValue
 
-def convertionReadToVolts(entryValue,pin):
-  if pin!=MOSFET_1_PIN & pin!=MOSFET_2_PIN & pin!=MOSFET_3_PIN: 
-    readValue= String(float(entryValue * ANALOG_VOLTS * VOLT_FACTOR,3))
-  else:
-    readValue= String(float(entryValue * ANALOG_VOLTS * VOLTS_FACTOR_IN_OP,3))
-  return readValue
+def convertionReadToVolts(entryValue, pin):
+    
+    if pin!=mosfet_1_pin & pin!=mosfet_2_pin & pin!=mosfet_3_pin: 
+        readValue= (ANALOG_VOLTS * VOLT_FACTOR)* float(entryValue)
+    else:
+        readValue= (ANALOG_VOLTS * VOLTS_FACTOR_IN_OP)* float(entryValue)
+    returnString= f'{readValue:.3f}'
+    return returnString
                      
 
 # Screen message function for button to control board
@@ -275,7 +262,15 @@ ttk.Label(mainFrame, text= "To control the board press the button").grid(column=
    
 # buttons to control pin mode
 
-ttk.Button(mainFrame, text="Control Board", command=onPressBoardUnlock).grid(column =1, row =2, sticky=(W,N,S))
+controlBoardPBtn=ttk.Button(mainFrame, text="Control Board", command=onPressBoardUnlock)
+
+if controller!=None:
+    controlBoardPBtn.state(['!disabled'])
+else:
+    controlBoardPBtn.state(['disabled'])
+    controlBoardPBtn.configure(text="Control Board N/A")
+
+controlBoardPBtn.grid(column =1, row =2, sticky=(W,N,S))
 
 # Labels for columns
 
@@ -284,150 +279,225 @@ ttk.Label(mainFrame, text= "Current value").grid(column=2,row=2, sticky=(W,E,N,S
 ttk.Label(mainFrame, text= "Value to update").grid(column=3,row=2, sticky=(W,E,N,S))
 ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2, sticky=(W,E,N,S))
 
-#function to resize image when window size change
+#function to resize image when window size change PENDING USE FRAME INSTEAD OF LABEL
 def boardResize(event):
-   photoFrame.boardlabel=event.widget
-   _imageWidth = int(event.width * 0.8)
-   _imageHeight = int(evemt.height * 0.8)
+   boardlabel = event.widget
+   _imageWidth = rootSizerWidth/3 
+   _imageHeight = rootSizeHeight/3
    global sizeChangedBoardImg, sizeChangedBoardPho
-   sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth, _imageHeight))
+   sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth,_imageHeight))
    sizeChangedBoardPho= ImageTk.PhotoImage(sizeChangedBoardImg)
-   photoFrame.boardlabel.config(image=sizeChangedBoardPho)
-#   avoid garbage collector
-   photoFrame.boardlabel.image = sizeChangedBoardPho
+   boardlabel.config(image=sizeChangedBoardPho)
+   # avoid garbage collector
+   boardlabel.image = sizeChangedBoardPho
 
 # Label for image
 boardImage = Image.open('chargerController_bb.png')
-resizedboardImage=boardImage.copy().resize((int(photoFrame.winfo_width() * 0.8),int(photoFrame.winfo_width() * 0.8)))
+
+imageWidth = int(rootSizerWidth * 0.4)
+imageHeight = int(rootSizerHeight * 0.4)
+resizedboardImage=boardImage.copy().resize((imageWidth,imageHeight))
 dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
 boardlabel= ttk.Label(photoFrame,image=photoBoard)
-photoFrame.boardlabel.pack()
-photoFrame.boardlabel.bind('<Configure>',boardResize)
-photoFrame.boardlabel.pack(fill=BOTH, expand=YES)
+boardlabel.bind('<Configure>',boardResize)
+boardlabel.grid(column =0, row =0, sticky=(W,E,N,S))
+
+photoFrame.grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
+
 
 # Buttons and labels to control board
 
 # Buttons to PIN MODE 
 
-pin=MOSFET_1_PIN
+isPinMode= None
+
+try:
+    isPinMode=isPinMode
+except: 
+    isPinMode= None
+    
+pin=mosfet_1_pin
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      buttonMos1Stg = "PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        buttonMos1Stg = "PWM"
     else:
-      buttonMos1Stg = "OUTPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "OUTPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
   else:
-    buttonMos1Stg = "INPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "INPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
 else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky=(W,E,N))
 buttonMos1= ttk.Button(mainFrame, textvariable=buttonMos1Stg)
 buttonMos1.grid(column =1, row =3, sticky=(W,E,N,S))
 
-pin=MOSFET_2_PIN
+pin=mosfet_2_pin
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      buttonMos2Stg = "PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        buttonMos1Stg = "PWM"
     else:
-      buttonMos2Stg = "OUTPUT"
-  else:
-    buttonMos2Stg = "INPUT"
-else:
-  buttonMos2Stg = "N/A"
+        if isPinMode!=None :
+            buttonMos1Stg = "OUTPUT"
+        else:
+            buttonMos1Stg = "N/A"  
 
-buttonMos2Stg = "PWM"
+  else:
+        if isPinMode!=None :
+            buttonMos1Stg = "INPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
+else:
+  buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Solar Panel Mosfet").grid(column=1,row=4, sticky=(W,E,N))
 buttonMos2 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
 buttonMos2.grid(column =1, row =4, sticky=(W,E,N,S))
 
-pin=MOSFET_3_PIN
+pin=mosfet_3_pin
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      buttonMos3Stg = "PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        buttonMos1Stg = "PWM"
     else:
-      buttonMos3Stg = "OUTPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "OUTPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
   else:
-    buttonMos3Stg = "INPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "INPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
 else:
-  buttonMos3Stg = "N/A"
+  buttonMos1Stg = "N/A"  
   ttk.Label(mainFrame, text= "Wind generator Mosfet").grid(column=1,row=5, sticky=(W,E,N))
 buttonMos3 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
 buttonMos3.grid(column =1, row =5, sticky=(W,E,N,S))
 
-pin=BATTERY_VOLTAGE_PIN
+
+pin=battery_voltage_pin
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      batteryVoltStg="PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        buttonMos1Stg = "PWM"
     else:
-      batteryVoltStg="OUTPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "OUTPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
   else:
-    batteryVoltStg="INPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "INPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
 else:
-  batteryVoltStg="N/A"
+  buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Battery Voltage").grid(column=1,row=6, sticky=(W,E,N))
 batteryVolt = ttk.Button(mainFrame, textvariable=batteryVoltStg)
 batteryVolt.grid(column =1, row =6, sticky=(W,E,N,S))
 
-pin=DEVICE_CHARGER_VOLTAGE_1
+pin=device_charger_voltage_1
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      trafoVoltStg="PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        buttonMos1Stg = "PWM"
     else:
-      trafoVoltStg="OUTPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "OUTPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
   else:
-    trafoVoltStg="INPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "INPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
 else:
-  trafoVoltStg="N/A"
+  buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Transformer Voltage").grid(column=1,row=7, sticky=(W,E,N))
 trafoVolt = ttk.Button(mainFrame, textvariable=trafoVoltStg)
 trafoVolt.grid(column =1, row =7, sticky=(W,E,N,S))
 
-pin=DEVICE_CHARGER_VOLTAGE_2
+pin=device_charger_voltage_2
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      solarVoltStg="PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        buttonMos1Stg = "PWM"
     else:
-      solarVoltStg="OUTPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "OUTPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
   else:
-    solarVoltStg="INPUT"    
+        if isPinMode!=None :
+            buttonMos1Stg = "INPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
 else:
-  solarVoltStg="N/A"
+  buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Solar panel Voltage").grid(column=1,row=8, sticky=(W,E,N))
 solarVolt = ttk.Button(mainFrame, textvariable=solarVoltStg)
 solarVolt.grid(column =1, row =8, sticky=(W,E,N,S))
 
-pin=DEVICE_CHARGER_VOLTAGE_3
+pin=device_charger_voltage_3
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      windVoltStg="PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        buttonMos1Stg = "PWM"
     else:
-      windVoltStg="OUTPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "OUTPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
   else:
-    windVoltStg="INPUT"
+        if isPinMode!=None :
+            buttonMos1Stg = "INPUT"
+        else:
+            buttonMos1Stg = "N/A"  
+
 else:
-  windVoltStg="N/A"
+  buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Wind gen. Voltage").grid(column=1,row=9, sticky=(W,E,N))
 windVolt = ttk.Button(mainFrame, textvariable=windVoltStg)
 windVolt.grid(column =1, row =9, sticky=(W,E,N,S))
 
-pin= PHOTO_RESISTOR
+pin= photo_resistor
 if controller!=None:
-  if controller.board.digital[pin].mode!=INPUT :
-    if controller.board.digital[pin].mode!=OUTPUT :
-      photoResistorStg="PWM"
+  if isPinMode!=INPUT and isPinMode!=None :
+    if isPinMode!=OUTPUT and isPinMode!=None :
+        photoResistorStg = "PWM"
     else:
-      photoResistorStg="OUTPUT"
+        if isPinMode!=None :
+            photoResistorStg = "OUTPUT"
+        else:
+            photoResistorStg = "N/A"  
+
   else:
-    photoResistorStg="INPUT" 
+        if isPinMode!=None :
+            photoResistorStg = "INPUT"
+        else:
+            photoResistorStg = "N/A"  
+
 else:
-  photoResistorStg="N/A"
+  buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Photo resistor pin").grid(column=1,row=10, sticky=(W,E,N))
 photoResistor = ttk.Button(mainFrame, textvariable=photoResistorStg)
 photoResistor.grid(column =1, row =10, sticky=(W,E,N,S))
@@ -436,57 +506,58 @@ photoResistor.grid(column =1, row =10, sticky=(W,E,N,S))
 def buttonDisabler(pin):
 
   global buttonMos1, buttonMos2, buttonMos3, batteryVolt, trafoVolt, solarVolt, photoResistor
-  if pin==MOSFET_1_PIN:
+# can be used frame parent instead of global   
+  if pin==mosfet_1_pin:
       buttonMos1.state(['disabled'])
-  elif pin==MOSFET_2_PIN:
+  elif pin==mosfet_2_pin:
       buttonMos2.state(['disabled'])
-  elif pin==MOSFET_3_PIN:
+  elif pin==mosfet_3_pin:
       buttonMos3.state(['disabled'])
-  elif pin==BATTERY_VOLTAGE_PIN:
+  elif pin==battery_voltage_pin:
       batteryVolt.state(['disabled'])
-  elif pin==DEVICE_CHARGER_VOLTAGE_1:
+  elif pin==device_charger_voltage_1:
       trafoVolt.state(['disabled'])
-  elif pin==DEVICE_CHARGER_VOLTAGE_2:
+  elif pin==device_charger_voltage_2:
       solarVolt.state(['disabled'])
-  elif pin==DEVICE_CHARGER_VOLTAGE_3:
+  elif pin==device_charger_voltage_3:
       windVolt.state(['disabled'])
   else: 
       photoResistor.state(['disabled'])
 
 def buttonEnabler(pin):
   global buttonMos1, buttonMos2, buttonMos3, batteryVolt, trafoVolt, solarVolt, photoResistor
-  if pin==MOSFET_1_PIN:
-      buttonMos1.state(['enabled'])
-  elif pin==MOSFET_2_PIN:
-      buttonMos2.state(['enabled'])
-  elif pin==MOSFET_3_PIN:
-      buttonMos3.state(['enabled'])
-  elif pin==BATTERY_VOLTAGE_PIN:
-      batteryVolt.state(['enabled'])
-  elif pin==DEVICE_CHARGER_VOLTAGE_1:
-      trafoVolt.state(['enabled'])
-  elif pin==DEVICE_CHARGER_VOLTAGE_2:
-      solarVolt.state(['enabled'])
-  elif pin==DEVICE_CHARGER_VOLTAGE_3:
-      windVolt.state(['enabled'])
+  if pin==mosfet_1_pin:
+      buttonMos1.state(['!disabled'])
+  elif pin==mosfet_2_pin:
+      buttonMos2.state(['!disabled'])
+  elif pin==mosfet_3_pin:
+      buttonMos3.state(['!disabled'])
+  elif pin==battery_voltage_pin:
+      batteryVolt.state(['!disabled'])
+  elif pin==device_charger_voltage_1:
+      trafoVolt.state(['!disabled'])
+  elif pin==device_charger_voltage_2:
+      solarVolt.state(['!disabled'])
+  elif pin==device_charger_voltage_3:
+      windVolt.state(['!disabled'])
   else: 
       photoResistor.state('enabled')
 
 def textToButton(text,pin):
   global buttonMos1Stg, buttonMos2Stg, buttonMos3Stg, batteryVoltStg, trafoVoltStg, solarVoltStg, windVoltStg, photoResistorStg
-  if pin==MOSFET_1_PIN:
+  if pin==mosfet_1_pin:
       buttonMos1Stg = text
-  elif pin==MOSFET_2_PIN:
+  elif pin==mosfet_2_pin:
       buttonMos2Stg = text
-  elif pin==MOSFET_3_PIN:
+  elif pin==mosfet_3_pin:
       buttonMos3Stg = text
-  elif pin==BATTERY_VOLTAGE_PIN:
+  elif pin==battery_voltage_pin:
       batteryVoltStg = text
-  elif pin==DEVICE_CHARGER_VOLTAGE_1:
+  elif pin==device_charger_voltage_1:
       trafoVoltStg = text
-  elif pin==DEVICE_CHARGER_VOLTAGE_2:
+  elif pin==device_charger_voltage_2:
       solarVoltStg = text
-  elif pin==DEVICE_CHARGER_VOLTAGE_3:
+  elif pin==device_charger_voltage_3:
       windVoltStg = text
   else: 
       photoResistorStg = text
@@ -503,89 +574,120 @@ def onPressMode(pin):
   tk.Label(alertFrame, text= "Do you want to proceed ?").grid(column=1,row=3, sticky=(W,E,N,S))
   ttk.Button(alertFrame, text="Proceed", command=onPressOk(pin)).grid(column =1, row =4, sticky=(W,E,N,S))
   ttk.Button(alertFrame, text="Cancell", command=onPressCancell(pin)).grid(column =2, row =4, sticky=(W,E,N,S))
+
+class CustomMessage(object):
+
+        def __init__(self, parent, *titlesAndQuestion, **buttonText):
+
+            self.parent=parent
+            ScreenWidth = self.parent.winfo_screenwidth()
+            ScreenHeight = self.parent.winfo_screenheight()
+
+            # check window size to make root size
+
+            rootSizerWidth= int(ScreenWidth*0.25)
+            rootSizerHeight= int(ScreenHeight*0.25)
+
+            topLeftPosition=(int((ScreenWidth- rootSizerWidth)/2),int((ScreenHeight- rootSizerHeight)/2))
+            top=Toplevel(self.parent)
+            top.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
+            top.transient(self.parent)
+            top.tittle(titlesAndQuestion[0])
+            top.frame=Frame(top)
+            top.label=Label(frame, text=titlesAndQuestion[1]).pack(pady=(SreemWidth/200))
+            frame.pack(pady=(SreemWidth/200))
+            top.grab_set()
+            top.frameButton=Frame(top)
+            for key, value in buttonText.items():
+                text=f" ,{"{}='{}'".format(key,value)}"        
+                key=Button(f'{top.frameButton} {text:}')
+                key.pack(side=LEFT)
+            top.frameButton.pack()
+        
+# check window size to make root size
+
+rootSizerWidth= int(ScreenWidth*0.8)
+rootSizerHeight= int(ScreenHeight*0.8)
+
+topLeftPosition=(int((ScreenWidth- rootSizerWidth)/2),int((ScreenHeight- rootSizerHeight)/2))
+
+root.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
+
   
 def onPressOk(pin):
     global controller
-    if controller.board.digital[pin].mode!=INPUT :
-      controller.modeset_pin_mode(pin=pin, mode='INPUT')
-      textToButton("INPUT",pin)
-      sleep(5)
-      alertWindow.quit()
-      buttonEnabler(pin)
-    elif controller.board.digital[pin].mode!=OUTPUT :
-      inputoroutput = messagebox.askyesno(message='Do you want INPUT (yes) OR OUTPUT (no) mode?', icon='question', tittle='INPUT OR OUTPUT instead of PWM')
-      if inputoroutput==True:
-        controller.set_pin_mode(pin=pinfunc, mode='INPUT')
+    if isPinMode!=INPUT and isPinMode!=None :
+        controller.modeset_pin_mode(pin=pin, mode='INPUT')
         textToButton("INPUT",pin)
         sleep(5)
         alertWindow.quit()
         buttonEnabler(pin)
-      else:
-         controller.set_pin_mode(pin=pin, mode='OUTPUT')
-         textToButton("OUTPUT",pin)
-         sleep(5)
-         alertWindow.quit()
-         buttonEnabler(pin)
-      elif controller.board.digital[pin].mode==INPUT :
+    elif isPinMode!=OUTPUT and isPinMode!=None :
+        inputoroutput = messagebox.askyesno(message='Do you want INPUT (yes) OR OUTPUT (no) mode?', icon='question', tittle='INPUT OR OUTPUT instead of PWM')
+        if inputoroutput==True:
+            controller.set_pin_mode(pin=pinfunc, mode='INPUT')
+            textToButton("INPUT",pin)
+            sleep(5)
+            alertWindow.quit()
+            buttonEnabler(pin)
+        else:
+            controller.set_pin_mode(pin=pin, mode='OUTPUT')
+            textToButton("OUTPUT",pin)
+            sleep(5)
+            alertWindow.quit()
+            buttonEnabler(pin)
+    elif isPinMode==INPUT :
         outputorpwm = messagebox.askyesno(message='Do you want OUTPUT (yes) OR PWM (no) mode?', icon='question', tittle='INPUT OR PWM instead of INPUT')
-    if outputorpwm==True:
-      controller.set_pin_mode(pin=pinfunc, mode='OUTPUT')
-      textToButton("OUTOUT",pin)
-      sleep(5)
-      alertWindow.quit()
-      buttonEnabler(pin)
+        if outputorpwm==True:
+            controller.set_pin_mode(pin=pin, mode='OUTPUT')
+            textToButton("OUTOUT",pin)
+            sleep(5)
+            alertWindow.quit()
+            buttonEnabler(pin)
+        else:
+            controller.set_pin_mode(pin=pin, mode='PWM')
+            textToButton("PWM",pin)
+            sleep(5)
+            alertWindow.quit()
+            buttonEnabler(pin)
     else:
-       controller.set_pin_mode(pin=pin, mode='PWM')
-       textToButton("PWM",pin)
-       sleep(5)
-       alertWindow.quit()
-       buttonEnabler(pin)
-  else:
-    outputorpwm = messagebox.askyesno(message='Do you want INPUT (yes) OR PWM (no) mode?', icon='question', tittle='INPUT OR PWM instead of OUTPUT')
-    if outputorpwm==True:
-      controller.set_pin_mode(pin=pinfunc, mode='INPUT')
-      textToButton("INPUT",pin)
-      sleep(5)
-      alertWindow.quit()
-      buttonEnabler(pin)
-    else:
-       controller.set_pin_mode(pin=pin, mode='PWM')
-       textToButton("PWM",pin)
-       sleep(5)
-       alertWindow.quit()
-       alertWindow.quit()
-       buttonEnabler(pin)
+        outputorpwm = messagebox.askyesno(message='Do you want INPUT (yes) OR PWM (no) mode?', icon='question', tittle='INPUT OR PWM instead of OUTPUT')
+        if outputorpwm==True:
+            controller.set_pin_mode(pin=pinfunc, mode='INPUT')
+            textToButton("INPUT",pin)
+            sleep(5)
+            alertWindow.quit()
+            buttonEnabler(pin)
+        else:
+            controller.set_pin_mode(pin=pin, mode='PWM')
+            textToButton("PWM",pin)
+            sleep(5)
+            alertWindow.quit()
+            alertWindow.quit()
+            buttonEnabler(pin)
     
 def onPressCancell(button):
     sleep(5)
     alertWindow.quit()
     button.state('enabled')
 
-if controller!= None:
-  buttonMos1.state(['enabled'])
-  buttonMos1.configure(command='onPressMode(MOSFET_1_PIN)')
-  buttonMos1.pack()
-  buttonMos2.state(['enabled'])
-  buttonMos2.configure(command='onPressMode(MOSFET_2_PIN)')
-  buttonMos2.pack()
-  buttonMos3.state(['enabled'])
-  buttonMos3.configure(command='onPressMode(MOSFET_3_PIN)')
-  buttonMos3.pack()
-  batteryVolt.state(['enabled'])
-  batteryVolt.configure(command='onPressMode(BATTERY_VOLTAGE_PIN)')
-  batteryVolt.pack()
-  trafoVolt.state(['enabled'])
-  trafoVolt.configure(command='onPressMode(DEVICE_CHARGER_VOLTAGE_1)')
-  trafoVolt.pack()
-  solarVolt.state(['enabled'])
-  solarVolt.configure(command='onPressMode(DEVICE_CHARGER_VOLTAGE_2)')
-  solarVolt.pack()
-  windVolt.state(['enabled'])
-  windVolt.configure(command='onPressMode(DEVICE_CHARGER_VOLTAGE_2)')
-  windVolt.pack()
-  photoResistor.state(['enabled'])
-  photoResistor.configure(command='onPressMode(PHOTO_RESISTOR)')
-  photoResistor.pack()
+if controller!= None and PC_CONTROL_STATE ==1 :
+  buttonMos1.state(['!disabled'])
+  buttonMos1.configure(command='onPressMode(mosfet_1_pin)')
+  buttonMos2.state(['!disabled'])
+  buttonMos2.configure(command='onPressMode(mosfet_2_pin)')
+  buttonMos3.state(['!disabled'])
+  buttonMos3.configure(command='onPressMode(mosfet_3_pin)')
+  batteryVolt.state(['!disabled'])
+  batteryVolt.configure(command='onPressMode(battery_voltage_pin)')
+  trafoVolt.state(['!disabled'])
+  trafoVolt.configure(command='onPressMode(device_charger_voltage_1)')
+  solarVolt.state(['!disabled'])
+  solarVolt.configure(command='onPressMode(device_charger_voltage_2)')
+  windVolt.state(['!disabled'])
+  windVolt.configure(command='onPressMode(device_charger_voltage_2)')
+  photoResistor.state(['!disabled'])
+  photoResistor.configure(command='onPressMode(photo_resistor)')
 else:
   buttonMos1.state(['disabled'])
   buttonMos2.state(['disabled'])
@@ -595,141 +697,205 @@ else:
   solarVolt.state(['disabled'])
   windVolt.state(['disabled'])
   photoResistor.state(['disabled'])
+  
     # Entries dissabled for current values
-    
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(MOSFET_1_PIN),MOSFET_1_PIN)).grid(column =2, row =3, sticky=(W,E,N,S)).state(dissable)
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(MOSFET_2_PIN),MOSFET_2_PIN)).grid(column =2, row =4, sticky=(W,E,N,S)).state(dissable)
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(MOSFET_3_PIN),MOSFET_3_PIN)).grid(column =2, row =5, sticky=(W,E,N,S)).state(dissable)
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(BATTERY_VOLTAGE_PIN),BATTERY_VOLTAGE_PIN)).grid(column =2, row =6, sticky=(W,E,N,S)).state(dissable)
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(DEVICE_CHARGER_VOLTAGE_1),DEVICE_CHARGER_VOLTAGE_1)).grid(column =2, row =7, sticky=(W,E,N,S)).state(dissable)
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(DEVICE_CHARGER_VOLTAGE_2),DEVICE_CHARGER_VOLTAGE_2)).grid(column =2, row =8, sticky=(W,E,N,S)).state(dissable)
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(DEVICE_CHARGER_VOLTAGE_3),DEVICE_CHARGER_VOLTAGE_3)).grid(column =2, row =9, sticky=(W,E,N,S)).state(dissable)
-ttk.Entry(mainFrame,show= convertionReadToVolts(pinCurrentValue(PHOTO_RESISTOR))).grid(column =2, row =10, sticky=(W,E,N,S)).state(dissable)
+textMos1 = f'{convertionReadToVolts(pinCurrentValue(mosfet_1_pin),mosfet_1_pin)}'    
+valMos1 = ttk.Entry(mainFrame,textvariable=textMos1).grid(column=2,row=3, sticky=(W,E,N,S))
+#valMos1.state(['disabled'])
+
+textMos2 = f'{convertionReadToVolts(pinCurrentValue(mosfet_2_pin),mosfet_2_pin)}'
+valMos2 = ttk.Entry(mainFrame,textvariable=textMos2).grid(column=2, row=4, sticky=(W,E,N,S))
+#valMos2.state(['disabled'])
+
+textMos3 = f'{convertionReadToVolts(pinCurrentValue(mosfet_3_pin),mosfet_3_pin)}'
+valMos3 = ttk.Entry(mainFrame,textvariable=textMos3).grid(column=2, row=5, sticky=(W,E,N,S))
+#valMos3.state(['disabled'])
+
+textBattery = f'{convertionReadToVolts(pinCurrentValue(battery_voltage_pin),battery_voltage_pin)}'
+valBattery = ttk.Entry(mainFrame,textvariable=textBattery).grid(column=2, row=6, sticky=(W,E,N,S))
+#valBattery.state(['disabled'])
+
+textTrafo = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_1),device_charger_voltage_1)}'
+valTrafo = ttk.Entry(mainFrame,textvariable=textTrafo ).grid(column=2, row=7, sticky=(W,E,N,S))
+#valTrafo.state(['disabled'])
+
+textSolar = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_2),device_charger_voltage_2)}'
+valSolar = ttk.Entry(mainFrame,textvariable=textSolar ).grid(column=2, row=8, sticky=(W,E,N,S))
+#valSolar.state(['disabled'])
+
+textWind = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_3),device_charger_voltage_3)}'
+valWind = ttk.Entry(mainFrame,textvariable=textWind ).grid(column=2,row =9, sticky=(W,E,N,S))
+#valWind.state(['disabled'])
+
+textPhotoR = f'{convertionReadToVolts(pinCurrentValue(photo_resistor),photo_resistor)}'
+valPhotoR = ttk.Entry(mainFrame,textvariable=textPhotoR).grid(column =2, row =10, sticky=(W,E,N,S))
+#valPhotoR.state(['disabled'])
 
     # Entries for change values
 
-entryMosfet1= ttk.Entry(mainFrame,show= pinCurrentValue(MOSFET_1_PIN)).grid(column =3, row =3, sticky=(W,E,N,S))
-entryMosfet2= ttk.Entry(mainFrame,show= pinCurrentValue(MOSFET_2_PIN)).grid(column =3, row =4, sticky=(W,E,N,S))
-entryMosfet3= ttk.Entry(mainFrame,show= pinCurrentValue(MOSFET_3_PIN)).grid(column =3, row =5, sticky=(W,E,N,S))
-entryBatteryVolt= ttk.Entry(mainFrame,show= pinCurrentValue(BATTERY_VOLTAGE_PIN)).grid(column =3, row =6, sticky=(W,E,N,S))
-entryTrafoVolt= ttk.Entry(mainFrame,show= pinCurrentValue(DEVICE_CHARGER_VOLTAGE_1)).grid(column =3, row =7, sticky=(W,E,N,S))
-entrySolarPanelVolt= ttk.Entry(mainFrame,show= pinCurrentValue(DEVICE_CHARGER_VOLTAGE_2)).grid(column =3, row =8, sticky=(W,E,N,S))
-entryWindTurbineVolt= ttk.Entry(mainFrame,show= pinCurrentValue(DEVICE_CHARGER_VOLTAGE_3)).grid(column =3, row =9, sticky=(W,E,N,S))
-entryPhotoreResistorVolt= ttk.Entry(mainFrame,show= pinCurrentValue(PHOTO_RESISTOR)).grid(column =3, row =10, sticky=(W,E,N,S))
+entryMosfet1= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_1_pin))
+entryMosfet2= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_2_pin))
+entryMosfet3= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_3_pin))
+entryBatteryVolt= ttk.Entry(mainFrame,show= pinCurrentValue(battery_voltage_pin))
+entryTrafoVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_1))
+entrySolarPanelVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_2))
+entryWindTurbineVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_3))
+entryPhotoreResistorVolt= ttk.Entry(mainFrame,show= pinCurrentValue(photo_resistor))
 
-if controller!= None:
-  entryMosfet1.state(['enabled'])
-  entryMosfet2.state(['enabled'])
-  entryMosfet3.state(['enabled'])
-  entryBatteryVolt.state(['enabled'])
-  entryTrafoVolt.state(['enabled'])
-  entrySolarPanelVolt.state(['enabled'])
-  entryWindTurbineVolt.state(['enabled'])
-  entryPhotoreResistorVolt.state(['enabled'])
+if controller!= None and PC_CONTROL_STATE ==1:
+  entryMosfet1.state(['!disabled'])
+  entryMosfet2.state(['!disabled'])
+  entryMosfet3.state(['!disabled'])
+  entryBatteryVolt.state(['!disabled'])
+  entryTrafoVolt.state(['!disabled'])
+  entrySolarPanelVolt.state(['!disabled'])
+  entryWindTurbineVolt.state(['!disabled'])
+  entryPhotoreResistorVolt.state(['!disabled'])
 else:
-  entryMosfet1.state(['dissabled'])
-  entryMosfet2.state(['dissabled'])
-  entryMosfet3.state(['dissabled'])
-  entryBatteryVolt.state(['dissabled'])
-  entryTrafoVolt.state(['dissabled'])
-  entrySolarPanelVolt.state(['dissabled'])
-  entryWindTurbineVolt.state(['dissabled'])
-  entryPhotoreResistorVolt.state(['dissabled'])
+  entryMosfet1.state(['disabled'])
+  entryMosfet2.state(['disabled'])
+  entryMosfet3.state(['disabled'])
+  entryBatteryVolt.state(['disabled'])
+  entryTrafoVolt.state(['disabled'])
+  entrySolarPanelVolt.state(['disabled'])
+  entryWindTurbineVolt.state(['disabled'])
+  entryPhotoreResistorVolt.state(['disabled'])
 
-  # button to proceed changes
-  
+entryMosfet1.grid(column =3, row =3, sticky=(W,E,N,S))
+entryMosfet2.grid(column =3, row =4, sticky=(W,E,N,S))
+entryMosfet3.grid(column =3, row =5, sticky=(W,E,N,S))
+entryBatteryVolt.grid(column =3, row =6, sticky=(W,E,N,S))
+entryTrafoVolt.grid(column =3, row =7, sticky=(W,E,N,S))
+entrySolarPanelVolt.grid(column =3, row =8, sticky=(W,E,N,S))
+entryWindTurbineVolt.grid(column =3, row =9, sticky=(W,E,N,S))
+entryPhotoreResistorVolt.grid(column =3, row =10, sticky=(W,E,N,S))
 
-proceedButton1=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entryMosfet1,MOSFET_1_PIN)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
-proceedButton2=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entryMosfet2,MOSFET_2_PIN)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
-proceedButton3=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entryMosfet3,MOSFET_3_PIN)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
-proceedButton4=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entryBatteryVolt,BATTERY_VOLTAGE_PIN)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
-proceedButton5=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entryTrafoVolt,DEVICE_CHARGER_VOLTAGE_1)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
-proceedButton6=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entrySolarPanleVolt,DEVICE_CHARGER_VOLTAGE_2)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
-proceedButton7=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entryWindTurbineVolt,DEVICE_CHARGER_VOLTAGE_3)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
-proceedButton8=ttk.Button(mainFrame, text="Proceed Change", command=onPressProceed(entryPhotoreResistorVolt,PHOTO_RESISTOR)).grid(column =4, row =rowPlaced, sticky=(W,E,N,S))
 
-if controller!= None:
-  proceedButton1.state('enabled')
-  proceedButton2.state('enabled')
-  proceedButton3.state('enabled')
-  proceedButton4.state('enabled')
-  proceedButton5.state('enabled')
-  proceedButton6.state('enabled')
-  proceedButton7.state('enabled')
-  proceedButton8.state('enabled')
 
-else:
-  proceedButton1.state('disabled')
-  proceedButton2.state('disabled')
-  proceedButton3.state('disabled')
-  proceedButton4.state('disabled')
-  proceedButton5.state('disabled')
-  proceedButton6.state('disabled')
-  proceedButton7.state('disabled')
-  proceedButton8.state('disabled')
+
+
+
+
+
+
+# buttons and function to proceed changes
 
 #Validation the entry with re numbers 1 digit . 0 to 3 digits and also with Ioerror
-validation= re.compile(r'\d{1,1}.\d{0,3}')
-    
-def onPressProceed(entryValue,pin):
-  
-  if pin== MOSFET_1_PIN:
-    mainFrame.proceedButton1.state('disabled')
-  elif pin== MOSFET_2_PIN:
-    mainFrame.proceedButton2.state('disabled')
-  elif pin== MOSFET_3_PIN:
-    mainFrame.proceedButton3.state('disabled')
-  elif pin== BATTERY_VOLTAGE_PIN:
-    mainFrame.proceedButton4.state('disabled')
-  elif pin== DEVICE_CHARGER_VOLTAGE_1:
-    mainFrame.proceedButton5.state('disabled')
-  elif pin== DEVICE_CHARGER_VOLTAGE_2:
-    mainFrame.proceedButton6.state('disabled')
-  elif pin== DEVICE_CHARGER_VOLTAGE_3:
-    mainFrame.proceedButton7.state('disabled')
-  else:
-    mainFrame.proceedButton8.state('disabled')
-  
-  matchValid= validation.match(entryvalue)
-  if matchValid!=None:
-    float_entryvalue= float(entryvalue)
-    if float_entryvalue<=5:
-      try:
-        controller.analog_write(pin,convertionToWrite(entryValue)) 
-        sleep(5)
-      except :
-        if float_entryvalue==1 or float_entryvalue==0:
-          try:
-        controller.digital_write(pin,convertionToWrite(entryValue)) 
-        sleep(5)
-      except :
-        messagebox.showinfo(tittle='Process Error', icon='alert',message='Pin mode is in Input')
-    else :
-      messagebox.showinfo(tittle='Process Error', icon='alert',message='Value must be =<5 tree digit maximun 0.000 format for Analog 0.000, 1 or 0 for Digital ')
-  else :
-    messagebox.showinfo(tittle='Process Error', icon='alert',message='Entry data must be a number in range format for Analog 0.000, 1 or 0 for Digital ')
+validation= re.compile(r'\d[.\d{1,3}]{0,1}')
 
-  if pin== MOSFET_1_PIN:
-    mainFrame.proceedButton1.state('enabled')
-  elif pin== MOSFET_2_PIN:
-    mainFrame.proceedButton2.state('enabled')
-  elif pin== MOSFET_3_PIN:
-    mainFrame.proceedButton3.state('enabled')
-  elif pin== BATTERY_VOLTAGE_PIN:
-    mainFrame.proceedButton4.state('enabled')
-  elif pin== DEVICE_CHARGER_VOLTAGE_1:
-    mainFrame.proceedButton5.state('enabled')
-  elif pin== DEVICE_CHARGER_VOLTAGE_2:
-    mainFrame.proceedButton6.state('enabled')
-  elif pin== DEVICE_CHARGER_VOLTAGE_3:
-    mainFrame.proceedButton7.state('enabled')
-  else:
-    mainFrame.proceedButton8.state('enabled')
+proceedButton1=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton2=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton3=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton4=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton5=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton6=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton7=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton8=ttk.Button(mainFrame, text="Proceed Change")
+
+
+
+def onPressProceed(entryValue,pin):
+      
+    match pin:
+      case int(mosfet_1_pin):
+        proceedButton1.state(['disabled'])
+      case int(mosfet_2_pin):
+        proceedButton2.state(['disabled'])
+      case int(mosfet_3_pin):
+        proceedButton3.state(['disabled'])
+      case int(battery_voltage_pin):
+        proceedButton4.state(['disabled'])
+      case int(device_charger_voltage_1):
+        proceedButton5.state(['disabled'])
+      case int(device_charger_voltage_2):
+        proceedButton6.state(['disabled'])
+      case int(device_charger_voltage_3):
+        proceedButton7.state(['disabled'])
+      case int(photo_resistor):
+        proceedButton8.state(['disabled'])
+  
+    matchValid= validation.match(f'{entryValue}')
+    if matchValid!=None:
+        float_entryvalue= float(entryValue)
+        if float_entryvalue<=5:
+            try:
+                controller.analog_write(pin,convertionToWrite(entryValue)) 
+                sleep(5)
+            except :
+                if float_entryvalue==1 or float_entryvalue==0:
+                    try:
+                        controller.digital_write(pin,convertionToWrite(entryValue)) 
+                        sleep(5)
+                    except :
+                        messagebox.showinfo(title="Process Error", icon='warning',message="Pin mode is in Input")
+        else :
+            messagebox.showinfo(title="Process Error", icon='warning',message="Value must be =<5 tree digit maximun 0.000 format for Analog 0.000, 1 or 0 for Digital")
+    else :
+        messagebox.showinfo(title="Process Error", icon='warning',message="Entry data must be a number in range format for Analog 0.000, 1 or 0 for Digital")
+
+    match pin:
+      case int(mosfet_1_pin):
+        proceedButton1.state(['!disabled'])
+      case int(mosfet_2_pin):
+        proceedButton2.state(['!disabled'])
+      case int(mosfet_3_pin):
+        proceedButton3.state(['!disabled'])
+      case int(battery_voltage_pin):
+        proceedButton4.state(['!disabled'])
+      case int(device_charger_voltage_1):
+        proceedButton5.state(['!disabled'])
+      case int(device_charger_voltage_2):
+        proceedButton6.state(['!disabled'])
+      case int(device_charger_voltage_3):
+        proceedButton7.state(['!disabled'])
+      case int(photo_resistor):
+        proceedButton8.state(['!disabled'])
+  
+
+proceedButton1.configure(command=onPressProceed(entryMosfet1,mosfet_1_pin))
+proceedButton2.configure(command=onPressProceed(entryMosfet2,mosfet_2_pin))
+proceedButton3.configure(command=onPressProceed(entryMosfet3,mosfet_3_pin))
+proceedButton4.configure(command=onPressProceed(entryBatteryVolt,battery_voltage_pin))
+proceedButton5.configure(command=onPressProceed(entryTrafoVolt,device_charger_voltage_1))
+proceedButton6.configure(command=onPressProceed(entrySolarPanelVolt,device_charger_voltage_2))
+proceedButton7.configure(command=onPressProceed(entryWindTurbineVolt,device_charger_voltage_3))
+proceedButton8.configure(command=onPressProceed(entryPhotoreResistorVolt,photo_resistor))
+
+if controller!= None and PC_CONTROL_STATE ==1:
+  proceedButton1.state(['!disabled'])
+  proceedButton2.state(['!disabled'])
+  proceedButton3.state(['!disabled'])
+  proceedButton4.state(['!disabled'])
+  proceedButton5.state(['!disabled'])
+  proceedButton6.state(['!disabled'])
+  proceedButton7.state(['!disabled'])
+  proceedButton8.state(['!disabled'])
+
+else:
+  proceedButton1.state(['disabled'])
+  proceedButton2.state(['disabled'])
+  proceedButton3.state(['disabled'])
+  proceedButton4.state(['disabled'])
+  proceedButton5.state(['disabled'])
+  proceedButton6.state(['disabled'])
+  proceedButton7.state(['disabled'])
+  proceedButton8.state(['disabled'])
+
                            
+proceedButton1.grid(column =4, row =3, sticky=(W,E,N,S))
+proceedButton2.grid(column =4, row =4, sticky=(W,E,N,S))
+proceedButton3.grid(column =4, row =5, sticky=(W,E,N,S))
+proceedButton4.grid(column =4, row =6, sticky=(W,E,N,S))
+proceedButton5.grid(column =4, row =7, sticky=(W,E,N,S))
+proceedButton6.grid(column =4, row =8, sticky=(W,E,N,S))
+proceedButton7.grid(column =4, row =9, sticky=(W,E,N,S))
+proceedButton8.grid(column =4, row =10, sticky=(W,E,N,S))
+
+
 # label and buttona to plot and print historic file
 ttk.Label(mainFrame, text="Historical data reporting:").grid(column =1, row =11, sticky=(W,N,S))                            
-ttk.Button(mainFrame, text="Plot", command=onPressPlot()).grid(column =2, row =12, sticky=(W,E,N,S))
-ttk.Button(mainFrame, text="Print", command=onPressPrint()).grid(column =2, row =12, sticky=(W,E,N,S))
+ttk.Button(mainFrame, text="Plot").grid(column =2, row =12, sticky=(W,E,N,S))
+ttk.Button(mainFrame, text="Print").grid(column =4, row =12, sticky=(W,E,N,S))
 
 # pending sample data appand on file and plot and print and eventually erase file
 def onPressPlot():
@@ -737,11 +903,36 @@ def onPressPlot():
   
 def onPressPrint():
   print('pending')
+
                           
-for child in mainframe.winfo_children():
-  child.grid_configure(padx=int(root.winfo_width()/100), pady=int(root.winfo_width()/100))
+for child in mainFrame.winfo_children():
+  child.grid_configure(padx=int(root.winfo_width()/150), pady=int(root.winfo_width()/150))
                
 sleep(5)
 
-mainFrame.pack(fill=BOTH, expand=YES)
+mainFrame.columnconfigure(0, weight=1)
+mainFrame.rowconfigure(0, weight=1)
+mainFrame.grid(column=0, row=0, sticky=(N,W,E,S))
+mainFrame.columnconfigure(1, weight=1)
+mainFrame.columnconfigure(2, weight=1)
+mainFrame.columnconfigure(3, weight=1)
+mainFrame.columnconfigure(4, weight=1)
+mainFrame.columnconfigure(5, weight=16)
+mainFrame.rowconfigure(1, weight=2)             
+mainFrame.rowconfigure(2, weight=1)
+mainFrame.rowconfigure(3, weight=1)
+mainFrame.rowconfigure(4, weight=1)
+mainFrame.rowconfigure(5, weight=1)
+mainFrame.rowconfigure(6, weight=1)
+mainFrame.rowconfigure(7, weight=1)
+mainFrame.rowconfigure(8, weight=1)
+mainFrame.rowconfigure(9, weight=1)
+mainFrame.rowconfigure(10, weight=1)
+mainFrame.rowconfigure(11, weight=1)
+mainFrame.rowconfigure(12, weight=2)
+
+
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
+
 root.mainloop()                                 
