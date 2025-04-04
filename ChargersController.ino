@@ -1,3 +1,10 @@
+/* THIS DEFINE SHOW IN THE WARNING BOARD DETECTED I INCLUDE THE LIBRARY
+TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
+*/
+
+#define BOAARD_IDENTIFY_WARNING
+#include <Board_Identify.h>
+/
 
 /*ALL THE PROGRAM IS DONE BY DARIO LOBOS, I TOOK SOME PARTS FROM EXAMPLES, 1O/MAR/2025
  * THE PROGRAM IS TO CONTROL 3 DEVICES TO CHARGE A BATTERY.
@@ -70,6 +77,8 @@ Basic program copy from examples,with analog addition and remote control switch 
 #include <FirmataDefines.h>
 #include <FirmataMarshaller.h>
 #include <FirmataParser.h>
+
+
 
 // ASSIGNMENT OF ONE PICK LOCKED FOR REMOTE CONTROL 
 
