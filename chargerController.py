@@ -13,44 +13,9 @@ import os
 # import pyfirmata2
 # import pymata
 # in the easyarduino library I had to modidify the import to firmata2
-# \Lib\site-packages\easyarduino\arduino_controller.py
+# \Lib\site-packages\easyarduino\arduino_controller.py and __init__  
 # because firmata through an error if the arduino is not connected
-#class Board(object):
-# ....
-# port_available== None
-#
-# def __init__(self, port, layout=None, baudrate=57600, name=None, timeout=None, debug=False):
-#        while port_available== None:
-# ALL THIS IS PENDING TO CHECK WHEN I TEST THE BOARD, NOW I AM IN LAYOUT
-# WITH TRY I SOLVED THE COMPILATION PROBLEM THAT DONT LET CHECK LAYOUT
-# ALSO I RETURN NONE IN GET_BOARD_INFO TO USE IT AS AVAILABILITY
-#    # --- Get board information ---
-#    def get_board_info(self):
-#        """Get board information (name, port, capabilities)"""
-#        if self.board!=None:
-#            return self.board.name, self.board.port, self.board.capabilities
-#        else:
-#            return None
-
-# Also I had to define the modes there because was not defined there (other user need to do that changes)
-# INPUT = 0          # as defined in wiring.h
-# OUTPUT = 1         # as defined in wiring.h
-# ANALOG = 2         # analog pin in analogInput mode
-# PWM = 3            # digital pin in PWM output mode
-# SERVO = 4          # digital pin in SERVO mode
-# INPUT_PULLUP = 11  # Same as INPUT, but with the pin's internal pull-up resistor enabled
-#         self.board.digital[pin].mode = self.board.INPUT  // throw error
-#         self.board.digital[pin].mode = INPUT  MUST BE THIS  
-#         elif mode == "INPUT":
-#         self.board.digital[pin].mode = self.board.OUTPUT  // throw error
-#         self.board.digital[pin].mode = OUTPUT  MUST BE THIS
-#         elif mode == "OUTPUT":
-#         self.board.digital[pin].mode = self.board.PWM  // throw error
-#         self.board.digital[pin].mode = PWM  MUST BE THIS  
-#         elif mode == "PWM":
-#         self.board.digital[pin].mode = self.board.SERVO // throw error
-#         self.board.digital[pin].mode = SERVO  MUST BE THIS
-#         elif mode == "SERVO":
+# firmata2 is almost to same but more complete
 
 import easyarduino
 from time import sleep
@@ -78,6 +43,17 @@ A4= 18
 A5= 19
 A6= 20
 A7= 21
+
+# FROM FIRMATA AND FIRMATA2
+
+UNAVAILABLE = -1
+INPUT = 0          # as defined in wiring.h
+OUTPUT = 1         # as defined in wiring.h
+ANALOG = 2         # analog pin in analogInput mode
+PWM = 3            # digital pin in PWM output mode
+SERVO = 4          # digital pin in SERVO mode
+INPUT_PULLUP = 11  # Same as INPUT, but with the pin's internal pull-up resistor enabled
+
 
 # Define port type
 ArduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
@@ -127,10 +103,31 @@ photo_resistor = A7
 
 PC_CONTROL_STATE =0
 
+ANALOG_PINS={"Pin":"Pin Number"}
+
 if controller!=None:
+# Initialization of pin modes can be done reading status from the board
+# so when connection start all  ports must be assigned as working default
+# when can be changed by taking control of board. Arduino program call
+# back that I did will not take effect of this and only will setup variables
+# as working default can be used controller.board.digital[pin].mode or function
+# to check status then (don't have function} is reading controller.board.digital[pin].mode
+# analog read pin don't have a stored variable so I will do a dictionary  
+
+
     controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+    controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+    controller.set_pin_mode(pin=mosfet_1_pin, mode='PWM')
+    controller.set_pin_mode(pin=mosfet_2_pin, mode='PWM')
+    controller.set_pin_mode(pin=mosfet_3_pin, mode='PWM')
 
-
+    # Dictionary to validate ANALOG ports (USER CAN CHANGE IT SO MUST REMOVE, ADD OR REPLACE}
+    ANALOG_PINS['battery_voltage_pin']=A3
+    ANALOG_PINS['device_charger_voltage_1']=A0
+    ANALOG_PINS['device_charger_voltage_2']=A1
+    ANALOG_PINS['device_charger_voltage_3']=A2
+    ANALOG_PINS['photo_resistor']=A7
+    
 # Define main widget environment dimensions
 root = Tk()
 root.title("Program to remote control Battery charger and Handle data")
@@ -147,40 +144,74 @@ topLeftPosition=(int((ScreenWidth- rootSizerWidth)/2),int((ScreenHeight- rootSiz
 
 root.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
 
+# Binds to check availability in any loop
+# at the end with a flag because slow plenty the program the check
+# the counter is to make check after some updates
+# root.bind('<Activate>',controllerAvalable)
+# root.bind('<Deactivate>',controllerAvalable)
+# root.bind('<Visibility>',controllerAvalable)
+# HAVE THE THREE BECAUSE PROGRAM WILL APPEND PIN STATUS EACH 30 MIN TO A FILE
+# AND PLOT IT CAN SET TIME STEP AND WILL PLOT CHARGE STATUS FOR EACH DEVICE
+# LIGHT STATUS AND CAN BE DETERMINED CALCULATED CURRENT WITH MOSFETS VOLTS AND
+# TEMPERATURE IN FUTURE UPGRADES
+
+counter_availability=0
+COUNTER_LIMIT=50   # This can be changed according usage
+
 def controllerAvalable(event):
-    mainFrame=event.widget
-    global controller
-    try:
-        controller = ArduinoController(port= ArduinoPort)
-    except:
-        controller= None
-    else:
-        controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+    global controller, counter_availability
+    counter_availability = counter_availability+1
+    if counter_availability >=COUNTER_LIMIT:
+        try:
+            controller = ArduinoController(port= ArduinoPort)
+        except:
+            controller= None
+        else:
+            if PC_CONTROL_STATE ==0:
+                controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+                controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+                controller.set_pin_mode(pin=mosfet_1_pin, mode='PWM')
+                controller.set_pin_mode(pin=mosfet_2_pin, mode='PWM')
+                controller.set_pin_mode(pin=mosfet_3_pin, mode='PWM')
+
+                # Dictionary to validate ANALOG ports (USER CAN CHANGE IT SO MUST REMOVE, ADD OR REPLACE}
+                if 'battery_voltage_pin' not in ANALOG_PINS:
+                    ANALOG_PINS['battery_voltage_pin']=A3
+                if 'device_charger_voltage_1' not in ANALOG_PINS:    
+                    ANALOG_PINS['device_charger_voltage_1']=A0
+                if 'device_charger_voltage_2' not in ANALOG_PINS:    
+                    ANALOG_PINS['device_charger_voltage_2']=A1
+                if 'device_charger_voltage_3' not in ANALOG_PINS:    
+                    ANALOG_PINS['device_charger_voltage_3']=A2
+                if 'photo_resistor' not in ANALOG_PINS:    
+                    ANALOG_PINS['photo_resistor']=A7
+            counter_availability =0
 
 mainFrame = ttk.Frame(root, padding ="3 3 12 12")
 
 # Bind to check availability in any loop
-mainFrame.bind('<Configure>',controllerAvalable)
+
 
 # Make an frame special for the image to can resize it well
 
 photoFrame = ttk.Frame(mainFrame, padding ="3 3 12 12")
 
 def onPressBoardUnlock():
-  mainFrame.startButton.state('disabled')
-  if PC_CONTROL_STATE ==1:
-     PC_CONTROL_STATE =O
-     mainframe.startButton.config(text="Disabled")
-     controller.digital_write(pin=PC_CONTROL_PIN, state=False)
-     sleep(5)
-     startButton.state('enabled')
+    mainFrame.startButton.state('disabled')
+    if controller!=None: 
+        if PC_CONTROL_STATE ==1:
+            PC_CONTROL_STATE =O
+            mainframe.startButton.config(text="Disabled")
+            controller.digital_write(pin=PC_CONTROL_PIN, state=False)
+            sleep(5)
+            startButton.state('enabled')
 
-  else:
-    PC_CONTROL_STATE =1
-    mainFrame.startButton.config(text="Enabled")
-    controller.digital_write(pin=PC_CONTROL_PIN, state=True)
-    sleep(5)
-    mainFrame.startButton.state('enabled')
+        else:
+            PC_CONTROL_STATE =1
+            mainFrame.startButton.config(text="Enabled")
+            controller.digital_write(pin=PC_CONTROL_PIN, state=True)
+            sleep(5)
+            mainFrame.startButton.state('enabled')
 
 # variables for button text
 
@@ -262,7 +293,7 @@ ttk.Label(mainFrame, text= "To control the board press the button").grid(column=
    
 # buttons to control pin mode
 
-controlBoardPBtn=ttk.Button(mainFrame, text="Control Board", command=onPressBoardUnlock)
+controlBoardPBtn=ttk.Button(mainFrame, text="Control Board", command=onPressBoardUnlock).grid(column=1,row=2,columnspan=5, sticky=(W,N,S))
 
 if controller!=None:
     controlBoardPBtn.state(['!disabled'])
@@ -281,28 +312,29 @@ ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2, sticky=(W,E,N,
 
 #function to resize image when window size change PENDING USE FRAME INSTEAD OF LABEL
 def boardResize(event):
-   boardlabel = event.widget
-   _imageWidth = event.width 
-   _imageHeight = event.height
+#  boardlabel = event.widget
+   _imageWidth = int(root.winfo_width()/2.5)
+   _imageHeight = int(root.winfo_height()/2.5)
    global sizeChangedBoardImg, sizeChangedBoardPho
    sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth,_imageHeight))
    sizeChangedBoardPho= ImageTk.PhotoImage(sizeChangedBoardImg)
    boardlabel.config(image=sizeChangedBoardPho)
    # avoid garbage collector
    boardlabel.image = sizeChangedBoardPho
+#   boardlabel.pack(fill=BOTH, expand=True, anchor='center')
 
 # Label for image
 boardImage = Image.open('chargerController_bb.png')
+
 imageWidth = int(rootSizerWidth * 0.4)
 imageHeight = int(rootSizerHeight * 0.4)
 resizedboardImage=boardImage.copy().resize((imageWidth,imageHeight))
 dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
 boardlabel= ttk.Label(photoFrame,image=photoBoard)
-boardlabel.bind('<Configure>',boardResize)
-boardlabel.pack()
-
+boardlabel.pack(fill=BOTH, expand=True, anchor='center')
 photoFrame.grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
+
 
 
 # Buttons and labels to control board
@@ -311,12 +343,13 @@ photoFrame.grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
 
 isPinMode= None
 
+pin=mosfet_1_pin
+
 try:
-    isPinMode=isPinMode
+    isPinMode=controller.board.digital[pin].mode
 except: 
     isPinMode= None
     
-pin=mosfet_1_pin
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -337,9 +370,15 @@ else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky=(W,E,N))
 buttonMos1= ttk.Button(mainFrame, textvariable=buttonMos1Stg)
-buttonMos1.grid(column =1, row =3, sticky=(W,E,N,S))
+buttonMos1.grid(column =1, row =3, sticky=(W,E,S))
 
 pin=mosfet_2_pin
+
+try:
+    isPinMode=controller.board.digital[pin].mode
+except: 
+    isPinMode= None
+
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -360,9 +399,15 @@ else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Solar Panel Mosfet").grid(column=1,row=4, sticky=(W,E,N))
 buttonMos2 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
-buttonMos2.grid(column =1, row =4, sticky=(W,E,N,S))
+buttonMos2.grid(column =1, row =4, sticky=(W,E,S))
 
 pin=mosfet_3_pin
+
+try:
+    isPinMode=controller.board.digital[pin].mode
+except: 
+    isPinMode= None
+
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -383,10 +428,16 @@ else:
   buttonMos1Stg = "N/A"  
   ttk.Label(mainFrame, text= "Wind generator Mosfet").grid(column=1,row=5, sticky=(W,E,N))
 buttonMos3 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
-buttonMos3.grid(column =1, row =5, sticky=(W,E,N,S))
+buttonMos3.grid(column =1, row =5, sticky=(W,E,S))
 
 
 pin=battery_voltage_pin
+
+try:
+    isPinMode=controller.board.digital[pin].mode
+except: 
+    isPinMode= None
+
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -407,9 +458,16 @@ else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Battery Voltage").grid(column=1,row=6, sticky=(W,E,N))
 batteryVolt = ttk.Button(mainFrame, textvariable=batteryVoltStg)
-batteryVolt.grid(column =1, row =6, sticky=(W,E,N,S))
+batteryVolt.grid(column =1, row =6, sticky=(W,E,S))
 
 pin=device_charger_voltage_1
+
+try:
+    isPinMode=controller.board.digital[pin].mode
+except: 
+    isPinMode= None
+
+
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -430,9 +488,15 @@ else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Transformer Voltage").grid(column=1,row=7, sticky=(W,E,N))
 trafoVolt = ttk.Button(mainFrame, textvariable=trafoVoltStg)
-trafoVolt.grid(column =1, row =7, sticky=(W,E,N,S))
+trafoVolt.grid(column =1, row =7, sticky=(W,E,S))
 
 pin=device_charger_voltage_2
+
+try:
+    isPinMode = controller.board.digital[pin].mode
+except: 
+    isPinMode= None
+
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -453,9 +517,16 @@ else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Solar panel Voltage").grid(column=1,row=8, sticky=(W,E,N))
 solarVolt = ttk.Button(mainFrame, textvariable=solarVoltStg)
-solarVolt.grid(column =1, row =8, sticky=(W,E,N,S))
+solarVolt.grid(column =1, row =8, sticky=(W,E,S))
 
 pin=device_charger_voltage_3
+
+try:
+    isPinMode=controller.board.digital[pin].mode
+except: 
+    isPinMode= None
+
+
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -476,9 +547,15 @@ else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Wind gen. Voltage").grid(column=1,row=9, sticky=(W,E,N))
 windVolt = ttk.Button(mainFrame, textvariable=windVoltStg)
-windVolt.grid(column =1, row =9, sticky=(W,E,N,S))
+windVolt.grid(column =1, row =9, sticky=(W,E,S))
 
 pin= photo_resistor
+
+try:
+    isPinMode=controller.board.digital[pin].mode
+except: 
+    isPinMode= None
+
 if controller!=None:
   if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
@@ -499,7 +576,7 @@ else:
   buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Photo resistor pin").grid(column=1,row=10, sticky=(W,E,N))
 photoResistor = ttk.Button(mainFrame, textvariable=photoResistorStg)
-photoResistor.grid(column =1, row =10, sticky=(W,E,N,S))
+photoResistor.grid(column =1, row =10, sticky=(W,E,S))
  
 
 def buttonDisabler(pin):
@@ -911,7 +988,6 @@ sleep(5)
 
 mainFrame.columnconfigure(0, weight=1)
 mainFrame.rowconfigure(0, weight=1)
-mainFrame.grid(column=0, row=0, sticky=(N,W,E,S))
 mainFrame.columnconfigure(1, weight=1)
 mainFrame.columnconfigure(2, weight=1)
 mainFrame.columnconfigure(3, weight=1)
@@ -929,9 +1005,14 @@ mainFrame.rowconfigure(9, weight=1)
 mainFrame.rowconfigure(10, weight=1)
 mainFrame.rowconfigure(11, weight=1)
 mainFrame.rowconfigure(12, weight=2)
+mainFrame.grid(column=0, row=0, sticky=(N,W,E,S))
 
+root.bind('<Activate>',controllerAvalable)
+root.bind('<Deactivate>',controllerAvalable)
+root.bind('<Visibility>',controllerAvalable)
 
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
+root.bind('<Configure>',boardResize)
 
 root.mainloop()                                 
