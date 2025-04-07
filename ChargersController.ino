@@ -2,9 +2,8 @@
 TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
 */
 
-#define BOAARD_IDENTIFY_WARNING
+#define BOARD_IDENTIFY_WARNING
 #include <Board_Identify.h>
-/
 
 /*ALL THE PROGRAM IS DONE BY DARIO LOBOS, I TOOK SOME PARTS FROM EXAMPLES, 1O/MAR/2025
  * THE PROGRAM IS TO CONTROL 3 DEVICES TO CHARGE A BATTERY.
@@ -52,34 +51,475 @@ TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
  " 
  * THE MICROCONTROLLER SEND ALL THE DATA USING FIRMATA AND WITH PHYTON IS
  " HANDLED TO MAKE HISTORIAL OF INFO AND GRAPHICS WiTH ThINKER AND PYFIRMATA.
- * Firmata is a generic protocol for communicating with microcontrolle
- * from software on a host computer. It is intended to work with
- * any host computer software package.
- *
- * To download a host software package, please clink on the following link
- * to open the download page in your default browser.
- *
- * http://firmata.org/wiki/Download
- */
-
-/* Supports as many digital inputs and outputs as possible.
- *
- * This example code is in the public domain.
-
-Basic program copy from examples,with analog addition and remote control switch and led pin
- done by D.Lobos March 7, 2025
  */
  //-----------------SERIAL TRANSFER PART -----------------
 
-#include <Boards.h>
-#include <Firmata.h>
-#include <FirmataConstants.h>
-#include <FirmataDefines.h>
-#include <FirmataMarshaller.h>
-#include <FirmataParser.h>
+/* THIS CODE IS FROM THE CHIP ATMEGA DATASHEET
+ ^ UBRROH, UBRR0H ARE REGISTERS FOR BAUTRATE
+ * UCSR0B IS REGISTER FOR TX AND RX WIRES USED 
+ * IN RS232 PROTOCOL RXEN0 
+ * UCSR0C, UCSZ00,UCSZ01 ARE TO PROTOCOL
+ * TO USE 8N1 
+ * BAUD AND BAUD_PRESCALLER ARE 
+*/
+
+// SET CLOCK TO 16 MHZ
+
+#define F_CPU 16000000UL
+
+// SET TIME OUT TO 1 SEG
+//setTimeout( 1000L);
+
+#define BAUDRATE 9600
+#define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) -1)   
+
+void initSerial(void){
+
+  UBRR0H = (uint8_t)(BAUD_PRESCALLER>>8);
+  UBRR0L = (uint8_t)(BAUD_PRESCALLER);
+/* IN OUR CASE RXEND IS BIT 0 AND 1 CAN BE USED 01 AND 10
+ * BOTH POSITIONS ARE SER TO 1 IN THE OR STATEMENT 
+ */
+  UCSR0B = (1<<RXEN0) | (1<<RXEN0);
+
+  UCSR0C = (1<<UCSZ00) | (1<<UCSZ00);
+  } 
+
+// IS CONVENIENT USE THEM WITH TRY TO WHEN ARE USED AND IF FAIL HAPPENS WILL TRY AGAIN IN NEXT LOOP WITHOUT EXCEPTION
+
+unsigned char receiveChar(void){
+  while(!(UCSR0A & (1<<RXC0))){
+  return UDR0;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
+}
+}
+
+void sendChar(unsigned char data){
+  while(!(UCSR0A & (1<<UDRE0))){
+  UDR0= data;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
+}
+}
 
 
+void sendString(char* StringPtr){
+  while (*StringPtr != 0x00){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
+    sendChar(*StringPtr);
+  }
+}
 
+const char SEND_STATUS=17; // THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
+
+
+const char RECEIVED=23; // THIS IS THE IDENTIFIER FOR SEND OF DATA
+
+
+/* PORT B AND PORT C ARE DIGITAL, PORT D IS ANALOG REGISTERS ARE DDRB, DDRC, DDRD, OUTPUT IN 1 
+ *  THIS IS THE IDENTIFIER FOR TELL THAT NEXT BYTES WILL BE PWM FIRST CONFIGURATION THEN DATA 
+ ^ PARITY IN THE RECEIVER MUST BE THAT PWN ON MUST BE EQUAL TO ARRAY RECEIVED LENGHT OR RESEND
+ * AND THE DDRX IN HIGH IF ONE PIN IS NOT AS BOARD CAPAVILITY ALSO MUST REQUEST RESEND
+ * SEQUENCE ES 2 CHAR FOR PINS SELECTION AND THEN AND THEN 2CHAR FOR EACH PWM WHICH DATA IS IN  
+ * THE PWM ARRAY AND ORDER IS PIN NUMBER 
+ * SAME IS POR SERVO
+ */
+
+const int IS_ANALOG_READ = 28; // IDENTIFIER FOR ANALOG READ PENDING FIND REGISTER
+
+const int ROW=22;
+
+uint8_t arrayRead [7][1]; // ARRAY TO STORE ANALOG READ DATA PENDING FIND REGISTER
+                          // ARE CERO NO CHAR 0
+// AVOIDING NULL ERROR
+
+for (int i=0; i<8 ;i++){
+  arrayRead[i][0]=0;
+  arrayRead[i][1]=0;
+}
+
+const char IS_PWM= 18;  // IDENTIFIER FOR PWM
+
+uint8_t pwmRegisterB; // REGISTERS TO IDENTIFY EACH PWM PIN
+uint8_t pwmRegisterC;
+uint8_t pwmRegisterD;
+
+
+uint8_t pwmData[ROW];  // ARRAY TO STORE PWM DATA PENDING FIND REGISTER
+
+for (int i=0; i<ROW ;i++){
+  pwmData[i]=0;
+  }
+
+
+const char IS_SERVO= 20; // IDENTIFIER FOR SERVO
+
+uint8_t servoRegisterB; // REGISTERS TO IDENTIFY EACH SERVO PIN
+uint8_t servoRegisterC;
+uint8_t servoRegisterD;
+
+uint8_t servoData[ROW];  // ARRAY TO STORE SERVO DATA PENDING FIND REGISTER
+
+for (int i=0; i<ROW ;i++){
+  servoData[i]=0;
+  }
+
+const char RESEND= 19;
+
+const char WAIT= 22;
+
+const char END = 23;
+
+const char BOARD_INFO =6; // THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER LIBRARY
+
+const int PC_REGISTERS_UPDATE = 14; // THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
+
+// ALL THESE STORE LAST SENT TO AVOID RESEND THE SAME
+ 
+uint8_t prevPortB;
+uint8_t prevPortC;
+uint8_t prevPortD;
+uint8_t prevArrayRead [7][1];
+uint8_t prevpwmData [ROW];
+uint8_t prevservoData [ROW];
+for (int i=0; i<ROW ;i++){
+  prevpwmData[i]=0;
+  prevservoData[i]=0;
+  }
+char receivedAction=0;
+
+String receivedRawString;
+
+// THIS IS TO SEND THE DATA WHEN RECEIVE THE CHAR SEND_STATUS
+ 
+void listen_PC_Start(void){
+
+/* exception handling is dissabled in the compiler pending implement 
+ *  try catch for the case of wire get disconnected in the middle of
+ *  a transmission to don't let program crack for an exception 
+ */ 
+
+receivedAction= receiveChar();
+
+// THIS IS NOT USED IS FOR THREAD AND TIMING OF THREADS
+
+  while (receivedAction==WAIT){
+   }
+
+   if (receivedAction==BOARD_INFO) {
+    boardInfo();
+   }
+
+   if (receivedAction==PC_REGISTERS_UPDATE) {
+    receibeData();
+   }
+
+  if (receivedAction==SEND_STATUS) {
+
+    // SEND PORTS STATUS
+
+    if( PORTD != prevPortD){
+
+      sendChar(PORTD);
+      sendChar(pwmRegisterD);
+      sendChar(servoRegisterD);
+    }
+    
+    if( PORTC != prevPortC){
+    
+      sendChar(PORTC);
+      sendChar(pwmRegisterC);
+      sendChar(servoRegisterC);
+    }
+
+    if( PORTB != prevPortB){
+
+      sendChar(PORTB);
+      sendChar(pwmRegisterB);
+      sendChar(servoRegisterB);      
+    }
+    
+// SEND ANALOG READ DATA
+
+    if (arrayRead != prevArrayRead){
+
+      uint8_t byteLow;
+      uint8_t byteHigh;
+        
+      for (int i=0; i<8 ;i++){
+        if (arrayRead[i][0]!= 0 & arrayRead[i][1]!= 0){ 
+           if(arrayRead[i][0]!= prevArrayRead[i][0] & arrayRead[i][1]!= prevArrayRead[i][1]) {
+            byteLow= arrayRead[i][0];
+            byteHigh=arrayRead[i][1];
+            sendChar(byteHigh);
+            sendChar(byteLow);
+            }
+        }
+     }
+    } 
+     
+//SEND PWM INFO
+    sendChar(IS_PWM);
+
+    if (pwmData != prevpwmData){
+
+      for (int i=0; i<ROW ;i++){
+        if (pwmData[i]!= 0){ 
+          if (pwmData[i]!= prevpwmData[i]){ 
+            sendChar(pwmData[i]);
+          }
+        }
+      }
+    }
+    
+    
+  if (servoData != prevservoData){
+
+    sendChar(IS_PWM);
+    
+    for (int i=0; i<ROW ;i++){
+      if (servoData[i]!= 0){ 
+        if (servoData[i]!= prevservoData[i]){ 
+          sendChar(servoData[i]);
+        }
+      }
+    }
+  }
+  
+  sendChar(END);
+  
+  // ASK DIRECTIONS TO COMPUTER RECEIVED?
+    receivedAction= receiveChar();
+
+  // CONPUTER CAN SEND WAIT AND RECEIVED
+    while (receivedAction==WAIT){
+    }
+   
+    if (receivedAction==RESEND) {
+
+    listen_PC_Start();
+    }
+    
+    receivedAction= receiveChar();
+
+    if (receivedAction!=RECEIVED) {
+    while(true){};
+      }
+    
+  prevPortB=PORTB;
+  prevPortC=PORTC;
+  prevPortD=PORTD;
+  prevArrayRead=arrayRead;
+  prevpwmData=pwmData;
+  prevservoData=servoData; 
+  }
+}
+
+// CHECK THAT PINS ADMITS PWM USAGE
+int pinForPWM[]={3,5,6,9,10,11,14,15,16,17,18,19,20,21};
+
+void newAnalogWrite(int pin, int value){  
+  for (int i=0; i<sizeof(pinForPWM); i++){
+    if (pinForPWM[i]==pin){
+
+    uint8_t lowbyte = value;
+    
+    analogWrite(pin, value);
+
+    pwmData[pin]= lowbyte; 
+    if(pinForPWM[i]<8){
+      pwmRegisterB.bitWrite(i);
+       
+    }
+    else if(pinForPWM[i]<16){
+      pwmRegisterC.bitWrite(i-8);
+       
+    }
+    else{
+            pwmRegisterD.bitWrite(i-16);
+    }
+  }  
+}
+}
+
+void newServo(int pin, int value){  
+  for (int i=0; i<sizeof(pinForPWM); i++){
+    if (pinForPWM[i]==pin){
+
+    uint8_t lowbyte = value;
+    
+    servoWrite(pin, value);
+
+    servoData[pin]= lowbyte; 
+    if(pinForPWM[i]<8){
+      servoRegisterB.bitWrite(i);
+       
+    }
+    else if(pinForPWM[i]<16){
+      servoRegisterC.bitWrite(i-8);
+       
+    }
+    else{
+            servoRegisterD.bitWrite(i-16);
+    }
+  }  
+}
+}
+
+int pinForAnalog[]={A0,A1,A2,A3,A4,A5,A6,A7};
+
+int newAnalogRead(int pin){
+  int value=analogRead(pin);
+  for (int i=0; i<sizeof(pinForAnalog); i++){
+    if (pinForAnalog[i]==pin){
+        uint8_t Highbyte =  value >>8;
+        uint8_t Lowbyte = value;
+    
+        int value=analogRead(pin);
+        arrayRead[pin][0]= Highbyte;
+        arrayRead[pin][1]= Lowbyte;
+    }
+  }
+  return value;
+}
+
+void boardInfo(void){
+while(true){
+sendChar(BOARD_INFO)
+sendString(BoardIdentify::type);
+sendChar('/n');
+sendString(BoardIdentify::make);
+sendChar('/n');
+sendString(BoardIdentify::model);
+sendChar('/n');
+sendString(BoardIdentify::mcu);
+sendChar('/n');
+sendChar(END);
+receivedAction= receiveChar();
+if(receivedAction==RECEIVED){
+ break; 
+}
+}
+
+}
+
+      
+void receiveData(void){
+int counter=0;
+String receivedRawString="";
+String receivedPWM="";
+String receivedServo="";
+String bufferPWM;
+String bufferServo;
+int counterPWM=0;
+int counterServo=0;
+uint8_t bufferPortB;
+uint8_t bufferPortC;
+uint8_t bufferPortD;
+uint8_t bufferRegisterPWMB;
+uint8_t bufferRegisterPWMC;
+uint8_t bufferRegisterPWMD;
+uint8_t bufferRegisterServoB;
+uint8_t bufferRegisterServoC;
+uint8_t bufferRegisterServoD;
+int counterRegisterPWM=0;
+int counterRegisterServo=0;
+
+
+while(true){
+  receivedRawString[counter]=receiveChar();
+  if(receivedRawString[counter]==END){
+  counter=0;
+  break;  
+  }
+  ++counter
+}
+
+bufferPortD=receivedRawString[0];
+bufferRegisterPWMD=receivedRawString[1];
+bufferRegisterServoD=receivedRawString[2]
+
+bufferPortD=receivedRawString[3]
+bufferRegisterPWMC=receivedRawString[4];
+bufferRegisterServoC;=receivedRawString[5];
+
+bufferPortD=receivedRawString[6]
+bufferRegisterPWMB=receivedRawString[7];;
+bufferRegisterServoB=receivedRawString[8];;
+
+for(i=0;i<8;i++){
+if(bufferRegisterPWMD.bitRead(i)==1){
+++counterRegisterPWM;
+}
+}
+for(i=0;i<8;i++){
+if(bufferRegisterPWMC.bitRead(i)==1){
+++counterRegisterPWM;
+}
+}
+
+for(i=0;i<8;i++){
+if(bufferRegisterPWMB.bitRead(i)==1){
+++counterRegisterPWM;
+}
+}
+
+for(i=0;i<8;i++){
+if(bufferRegisterServoD.bitRead(i)==1){
+++counterRegisterServo;
+}
+}
+for(i=0;i<8;i++){
+if(bufferRegisterServoC.bitRead(i)==1){
+++counterRegisterServo;
+}
+}
+
+for(i=0;i<8;i++){
+if(bufferRegisterServoB.bitRead(i)==1){
+++counterRegisterServo;
+}
+}
+
+
+for(i=9;i<134;i++){
+  if (receivedRawString[i]==IS_PWM){
+    if(receivedRawString[i+1]!=IS_SERVO){
+    receivedPWM=receivedRawString[i+1]
+    ++counterPWM;
+    }
+    else{
+      if(receivedRawString[i+2]!=END){
+        receivedServo=receivedRawString[i+2]
+        ++counterServo; 
+      }
+     }
+    }
+  break;
+  }
+for(i=9;i<134;i++){
+  if (receivedRawString[i]==IS_SERVO){
+    if(receivedRawString[i+1]!=END){
+    receivedServo=receivedRawString[i+1]
+    ++counterServo;
+    }
+    else{
+     break;
+     }
+    }
+  }
+
+
+  if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo){
+  sendChar(RESEND);
+  receiveData();
+  }
+  
+  sendChar(RECEIVED);
+    
+
+}
+  
+  
+
+
+   
 // ASSIGNMENT OF ONE PICK LOCKED FOR REMOTE CONTROL 
 
 int PC_CONTROL_STATE= LOW;
@@ -92,10 +532,6 @@ const int PC_CONTROL_MODE= OUTPUT;
 
 byte pinPc = byte (PC_CONTROL_PIN);
 
-byte previousPin[TOTAL_PORTS];  // PIN means PORT for input
-byte previousPort[TOTAL_PORTS];
-byte previousAlogPin[TOTAL_ANALOG_PINS];
-byte previousAlogPort[TOTAL_ANALOG_PINS]; 
 byte currentPinValue;
 byte previousPinValue;
 
@@ -103,97 +539,6 @@ byte previousPinValue;
 byte analogPin = 0;
 
 
-
-void outputPort(byte port, byte value)
-{
-  if (IS_PIN_DIGITAL(port)){
-
-  // only send the data when it changes, otherwise you get too many messages!
-  if (previousPort[port] != value) {
-    Firmata.sendDigitalPort(port, value);
-    previousPort[port] = value;
-delay(10);
-  }
-}
-}
-void outputAlogPort(byte port, byte value)
-{
-  if (IS_PIN_PWM(port)){
-
-  // only send the data when it changes, otherwise you get too many messages!
-  if (previousAlogPort[port] != value) {
-    Firmata.sendAnalog(port, value);
-    previousAlogPort[port] = value;
-delay(10);//delay can e reduced according application.
-
-  }
-}
-}
-
-
-
-
-void setPinModeCallback(byte pin, int mode) {
-if (PC_CONTROL_STATE ==HIGH) { 
-if (pin!=pinPc) {
-  if (IS_PIN_DIGITAL(pin)) {
-    pinMode(PIN_TO_DIGITAL(pin), mode);
-  } 
- else {pinMode(PIN_TO_PWM(pin),mode);
-}
-pinMode(PIN_TO_DIGITAL(pinPc), PC_CONTROL_MODE);
-delay(10);
-}
-}
-}
-
-void digitalWriteCallback(byte port, int value)
-{
-if (PC_CONTROL_STATE ==HIGH) {
-  byte i;
-  if (IS_PIN_DIGITAL(port)){
-  if (port < TOTAL_PORTS && value != previousPort[port]) {
-    for (i = 0; i < 8; i++) {
-      currentPinValue = (byte) value & (1 << i);
-      previousPinValue = previousPort[port] & (1 << i);
-      if (currentPinValue != previousPinValue) {
-        digitalWrite(i + (port * 8), currentPinValue);
-      }
-    }
-  }
-  }
-  
-else if (port == pinPc){
-for (i = 0; i < 8; i++) {
-      currentPinValue = (byte) value & (1 << i);
-      previousPinValue = previousPort[port] & (1 << i);
-      if (currentPinValue != previousPinValue) {
-        digitalWrite(i + (pinPc * 8), currentPinValue);
-}
-} 
-}
- 
-previousPort[port] = value;
-delay(10);
-}
-}
-
-void analogWriteCallback(byte port, int value)
-{
-if (PC_CONTROL_STATE ==HIGH) {
-byte pinPc = byte (PC_CONTROL_PIN);
-  if (IS_PIN_PWM(port)) {
- if (port < TOTAL_ANALOG_PINS && value != previousAlogPort[port]) {
-if (port!=pinPc) {
-   
-    analogWrite(PIN_TO_PWM(port), value);
-}
-  }
-previousAlogPort[port] = value;
-delay(10);
-}
-}
-}
  
 /* THIS IS FOR THE PIN EXTENDER USING THE CHIP MCP23X17 
  *  EXPANDER PIN CONNECTION:
@@ -233,7 +578,7 @@ for serial transmission is connected to pin 0 and 1 (RX,TX)
 */
 
 #include <Adafruit_MCP23X17.h>
-#include <Wire.h>;
+#include <Wire.h>
 
 # define MCP_PIN0 0  
 # define MCP_PIN1 1  
@@ -386,10 +731,10 @@ return int(inputout);
 
 // Function to display voltage and message
 
-void lcdMessage (String message,int lenght, float analogReadVolts ){
+void lcdMessage (String message,int lenght, float newAnalogReadVolts ){
    
    lcd.clear();
-   float voltTemp=analogVoltageConvertion(analogReadVolts,VOLT_FACTOR);
+   float voltTemp=analogVoltageConvertion(newAnalogReadVolts,VOLT_FACTOR);
    String castVolt= String(voltTemp,2);
   char castChar[sizeof(castVolt)];
    for (int i=0; i< sizeof(castVolt);i++){
@@ -456,7 +801,6 @@ void lcdSetupTimes (String message1, String message2){
 //  4x4 or smaller keyPad.
 
 
-#include <Wire.h>
 #include <I2CKeyPad.h>
 
 /* KEY PAD PINS 
@@ -735,13 +1079,6 @@ void setup()
 // initialize the PC control pin as an output:
   pinMode(PC_CONTROL_PIN, PC_CONTROL_MODE);
 
-// initialize firmata  
-  Firmata.setFirmwareVersion(FIRMATA_MAJOR_VERSION, FIRMATA_MINOR_VERSION);
-  Firmata.attach(DIGITAL_MESSAGE, digitalWriteCallback);
-Firmata.attach(ANALOG_MESSAGE, analogWriteCallback);
-  Firmata.attach(SET_PIN_MODE, setPinModeCallback);
-  Firmata.begin(57600);
-
  // Set the clock to run-mode, and disable the write protection
   rtc.halt(false);
   rtc.writeProtect(true);
@@ -787,8 +1124,6 @@ void loop(){
   
   while (PC_CONTROL_STATE == LOW) {
     
-  while (Firmata.available()) {
-    Firmata.processInput();
 if (PC_CONTROL_STATE == HIGH){
 break;
 }
@@ -798,11 +1133,11 @@ break;
 
 Setup_menu_call();
 
-batteryState = analogVoltageConvertion(analogRead(BATTERY_VOLTAGE_PIN),VOLT_FACTOR);
-device1ChargerRead= analogVoltageConvertion(analogRead(DEVICE_CHARGER_VOLTAGE_1),VOLTS_FACTOR_IN_OP);
-device2ChargerRead= analogVoltageConvertion(analogRead(DEVICE_CHARGER_VOLTAGE_2),VOLTS_FACTOR_IN_OP);
-device3ChargerRead= analogVoltageConvertion (analogRead(DEVICE_CHARGER_VOLTAGE_3),VOLTS_FACTOR_IN_OP);
-PHOTO_RESISTOR_READ = analogRead(PHOTO_RESISTOR);
+batteryState = analogVoltageConvertion(newAnalogRead(BATTERY_VOLTAGE_PIN),VOLT_FACTOR);
+device1ChargerRead= analogVoltageConvertion(newAnalogRead(DEVICE_CHARGER_VOLTAGE_1),VOLTS_FACTOR_IN_OP);
+device2ChargerRead= analogVoltageConvertion(newAnalogRead(DEVICE_CHARGER_VOLTAGE_2),VOLTS_FACTOR_IN_OP);
+device3ChargerRead= analogVoltageConvertion (newAnalogRead(DEVICE_CHARGER_VOLTAGE_3),VOLTS_FACTOR_IN_OP);
+PHOTO_RESISTOR_READ = newAnalogRead(PHOTO_RESISTOR);
   
 while (batteryState <  BAT_FULL_VOLTS) {
 
@@ -835,14 +1170,14 @@ if(timeint>=0){
 int storedTime= HOUR_FOR_CHARGE^100+ MINUTES_FOR_CHARGE;
 
 if (storedTime <= timeint){
-analogWrite(MOSFET_1_PIN,mosfet1Signal); // SIGNAL TO TRANSFORMER MOSFET
+newAnalogWrite(MOSFET_1_PIN,mosfet1Signal); // SIGNAL TO TRANSFORMER MOSFET
 }
 
 if ( PHOTO_RESISTOR_READ > PHOTO_PRESISTOR_LIMIT){
-analogWrite(MOSFET_2_PIN,mosfet2Signal); // SIGNAL TO SOLAR PANNEL
+newAnalogWrite(MOSFET_2_PIN,mosfet2Signal); // SIGNAL TO SOLAR PANNEL
 }
 
-analogWrite(MOSFET_3_PIN,mosfet3Signal); // SIGNAL FOR WIND GENERATOR
+newAnalogWrite(MOSFET_3_PIN,mosfet3Signal); // SIGNAL FOR WIND GENERATOR
 
 
    
@@ -851,50 +1186,22 @@ analogWrite(MOSFET_3_PIN,mosfet3Signal); // SIGNAL FOR WIND GENERATOR
   byte i;
 
 
-  for (i = 0; i < TOTAL_PORTS; i++) {
-    outputPort(i, readPort(i,0xff));
-    
-  }
-for (i = 0; i < TOTAL_ANALOG_PINS; i++) {
-outputAlogPort(i, analogRead(i));
-    
-  }
 
-  while (Firmata.available()) {
-    Firmata.processInput();
  PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
-  }
 }
 lcdMessage (LCD_FULL_BATTERY,FULL_LENGHT, batteryState );
 }
 
-  }
+  
   
 while (PC_CONTROL_STATE== HIGH) {
+  
 //
 // pc program that will be only call back process and read check.
 
-while (Firmata.available()) {
-    Firmata.processInput();
-}
-  byte i;
-
-
-  for (i = 0; i < TOTAL_PORTS; i++) {
-    outputPort(i, readPort(i,0xff));
-    
-  }
-for (i = 0; i < TOTAL_ANALOG_PINS; i++) {
-outputAlogPort(i, analogRead(i));
-    
-  }
-
-  while (Firmata.available()) {
-    Firmata.processInput();
-
-}
 PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
-}
+
+
 // reset is necessary because the computer
 // can change pins or ports and modes of operation  so is necessary hardware with a jumper and reset pin.
 // create a standard reset function
@@ -903,10 +1210,6 @@ PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
 mcp.digitalWrite(MCP_PIN15, HIGH);
 
 
-  }  
-
-
-
-
-
+}  
+}
 // END OF FILE
