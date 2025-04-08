@@ -1,9 +1,21 @@
+
 /* THIS DEFINE SHOW IN THE WARNING BOARD DETECTED I INCLUDE THE LIBRARY
 TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
 */
 
 #define BOARD_IDENTIFY_WARNING
 #include <Board_Identify.h>
+
+/* I am not using servo but I leave it for other usages to complete data transfer 
+ * servo should be more than one when are used and new servo shold be modified 
+ * this is because needs one attach per servo, Can be modified as PWM analogWrite 
+ * and calculation for the write = angle x 255/ 180 
+ * the newServo or as well using direct manipulation and then calculation
+  */
+  
+#include <Servo.h>
+
+Servo myServo;
 
 /*ALL THE PROGRAM IS DONE BY DARIO LOBOS, I TOOK SOME PARTS FROM EXAMPLES, 1O/MAR/2025
  * THE PROGRAM IS TO CONTROL 3 DEVICES TO CHARGE A BATTERY.
@@ -50,7 +62,7 @@ TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
  *  OPERATIONAL AMPLIFIERS NEEDS LM315 TO SET IT TO 10 VOLTS OR 12 VOLTS.
  " 
  * THE MICROCONTROLLER SEND ALL THE DATA USING FIRMATA AND WITH PHYTON IS
- " HANDLED TO MAKE HISTORIAL OF INFO AND GRAPHICS WiTH ThINKER AND PYFIRMATA.
+ " HANDLED TO MAKE HISTORIAL OF INFO AND GRAPHICS WiTH TkINTER AND PYFIRMATA.
  */
  //-----------------SERIAL TRANSFER PART -----------------
 
@@ -87,7 +99,7 @@ void initSerial(void){
 
 // IS CONVENIENT USE THEM WITH TRY TO WHEN ARE USED AND IF FAIL HAPPENS WILL TRY AGAIN IN NEXT LOOP WITHOUT EXCEPTION
 
-unsigned char receiveChar(void){
+unsigned char receiveChar(){
   while(!(UCSR0A & (1<<RXC0))){
   return UDR0;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
 }
@@ -100,7 +112,7 @@ void sendChar(unsigned char data){
 }
 
 
-void sendString(char* StringPtr){
+void sendString(char *StringPtr){
   while (*StringPtr != 0x00){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
     sendChar(*StringPtr);
   }
@@ -123,9 +135,9 @@ const char RECEIVED=23; // THIS IS THE IDENTIFIER FOR SEND OF DATA
 
 const int IS_ANALOG_READ = 28; // IDENTIFIER FOR ANALOG READ PENDING FIND REGISTER
 
-const int ROW=22;
+const int ROW=24;
 
-uint8_t arrayRead [7][1]; // ARRAY TO STORE ANALOG READ DATA PENDING FIND REGISTER
+unsigned char arrayRead [7][1]; // ARRAY TO STORE ANALOG READ DATA PENDING FIND REGISTER
                           // ARE CERO NO CHAR 0
 // AVOIDING NULL ERROR
 
@@ -141,7 +153,7 @@ uint8_t pwmRegisterC;
 uint8_t pwmRegisterD;
 
 
-uint8_t pwmData[ROW];  // ARRAY TO STORE PWM DATA PENDING FIND REGISTER
+unsigned char pwmData[ROW];  // ARRAY TO STORE PWM DATA PENDING FIND REGISTER
 
 for (int i=0; i<ROW ;i++){
   pwmData[i]=0;
@@ -154,7 +166,7 @@ uint8_t servoRegisterB; // REGISTERS TO IDENTIFY EACH SERVO PIN
 uint8_t servoRegisterC;
 uint8_t servoRegisterD;
 
-uint8_t servoData[ROW];  // ARRAY TO STORE SERVO DATA PENDING FIND REGISTER
+unsigned char servoData[ROW];  // ARRAY TO STORE SERVO DATA PENDING FIND REGISTER
 
 for (int i=0; i<ROW ;i++){
   servoData[i]=0;
@@ -175,25 +187,30 @@ const int PC_REGISTERS_UPDATE = 14; // THIS IS TO SEND ALL THE REGISTERS AND DAT
 uint8_t prevPortB;
 uint8_t prevPortC;
 uint8_t prevPortD;
-uint8_t prevArrayRead [7][1];
-uint8_t prevpwmData [ROW];
-uint8_t prevservoData [ROW];
+unsigned char prevArrayRead [7][1];
+unsigned char prevpwmData [ROW];
+unsigned char prevservoData [ROW];
+
 for (int i=0; i<ROW ;i++){
   prevpwmData[i]=0;
   prevservoData[i]=0;
   }
-char receivedAction=0;
+unsigned char receivedAction=0;
 
-String receivedRawString;
 
 // THIS IS TO SEND THE DATA WHEN RECEIVE THE CHAR SEND_STATUS
+
+void boardInfo();
+void receibeData();
+
  
-void listen_PC_Start(void){
+void listen_PC_Start(){
 
 /* exception handling is dissabled in the compiler pending implement 
  *  try catch for the case of wire get disconnected in the middle of
  *  a transmission to don't let program crack for an exception 
  */ 
+
 
 receivedAction= receiveChar();
 
@@ -216,31 +233,31 @@ receivedAction= receiveChar();
 
     if( PORTD != prevPortD){
 
-      sendChar(PORTD);
-      sendChar(pwmRegisterD);
-      sendChar(servoRegisterD);
+      sendChar(unsigned char (PORTD));
+      sendChar(unsigned char (pwmRegisterD));
+      sendChar(unsigned char(servoRegisterD));
     }
     
     if( PORTC != prevPortC){
     
-      sendChar(PORTC);
-      sendChar(pwmRegisterC);
-      sendChar(servoRegisterC);
+      sendChar(unsigned char (PORTC));
+      sendChar(unsigned char (pwmRegisterC));
+      sendChar(unsigned char (servoRegisterC));
     }
 
     if( PORTB != prevPortB){
 
-      sendChar(PORTB);
-      sendChar(pwmRegisterB);
-      sendChar(servoRegisterB);      
+      sendChar(unsigned char (PORTB));
+      sendChar(unsigned char (pwmRegisterB));
+      sendChar(unsigned char(servoRegisterB));      
     }
     
 // SEND ANALOG READ DATA
 
     if (arrayRead != prevArrayRead){
 
-      uint8_t byteLow;
-      uint8_t byteHigh;
+      unsigned char byteLow;
+      unsigned char byteHigh;
         
       for (int i=0; i<8 ;i++){
         if (arrayRead[i][0]!= 0 & arrayRead[i][1]!= 0){ 
@@ -271,7 +288,7 @@ receivedAction= receiveChar();
     
   if (servoData != prevservoData){
 
-    sendChar(IS_PWM);
+    sendChar(IS_SERVO);
     
     for (int i=0; i<ROW ;i++){
       if (servoData[i]!= 0){ 
@@ -285,54 +302,73 @@ receivedAction= receiveChar();
   sendChar(END);
   
   // ASK DIRECTIONS TO COMPUTER RECEIVED?
-    receivedAction= receiveChar();
-
   // CONPUTER CAN SEND WAIT AND RECEIVED
-    while (receivedAction==WAIT){
-    }
-   
-    if (receivedAction==RESEND) {
 
-    listen_PC_Start();
-    }
-    
-    receivedAction= receiveChar();
-
-    if (receivedAction!=RECEIVED) {
-    while(true){};
+      do {
+        receivedAction= receiveChar();
+        while (receivedAction==WAIT){
+        }
+        if (receivedAction==RESEND) {
+          listen_PC_Start();
+        }
       }
+       while (receivedAction!=RECEIVED);
     
-  prevPortB=PORTB;
-  prevPortC=PORTC;
-  prevPortD=PORTD;
-  prevArrayRead=arrayRead;
-  prevpwmData=pwmData;
-  prevservoData=servoData; 
+  prevPortB = PORTB;
+  prevPortC = PORTC;
+  prevPortD = PORTD;
+  prevArrayRead = arrayRead;
+  prevpwmData = pwmData;
+  prevservoData = servoData; 
   }
 }
 
 // CHECK THAT PINS ADMITS PWM USAGE
 int pinForPWM[]={3,5,6,9,10,11,14,15,16,17,18,19,20,21};
 
+// IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
+// int& this is a reference of memory position of number and this change bit direct in the addrees that is the data
+
+void setBit( int& n,int pos){
+  n|=( 1<< pos );
+}
+
+boolean bitON( int n,int pos){
+return ( n & (1<<pos)!=0)
+}
+
+unsigned int counterBitON(uint8_t data){
+  int count=0;
+  while(data){
+      data &= (data-1) 
+      count++;
+    }
+  return count  
+  }
+    
+
+
 void newAnalogWrite(int pin, int value){  
   for (int i=0; i<sizeof(pinForPWM); i++){
     if (pinForPWM[i]==pin){
 
-    uint8_t lowbyte = value;
+    unsigned char lowbyte = unsigned char(value);
     
     analogWrite(pin, value);
 
     pwmData[pin]= lowbyte; 
+    
+    int n=0
+    
     if(pinForPWM[i]<8){
-      pwmRegisterB.bitWrite(i);
-       
-    }
+      
+      bitON(pwmRegisterB,i);
+   
     else if(pinForPWM[i]<16){
-      pwmRegisterC.bitWrite(i-8);
-       
+      bitON(pwmRegisterC,i-8);    
     }
     else{
-            pwmRegisterD.bitWrite(i-16);
+      bitON(pwmRegisterD,i-16);
     }
   }  
 }
@@ -342,21 +378,22 @@ void newServo(int pin, int value){
   for (int i=0; i<sizeof(pinForPWM); i++){
     if (pinForPWM[i]==pin){
 
-    uint8_t lowbyte = value;
-    
-    servoWrite(pin, value);
+    unsigned char lowbyte = unsigned char(value);
+
+    myservo.attach(pin);
+    myServo.write(value);
 
     servoData[pin]= lowbyte; 
     if(pinForPWM[i]<8){
-      servoRegisterB.bitWrite(i);
+      bitON(servoRegisterB,i);
        
     }
     else if(pinForPWM[i]<16){
-      servoRegisterC.bitWrite(i-8);
+      bitON(servoRegisterC,i-8);
        
     }
     else{
-            servoRegisterD.bitWrite(i-16);
+      bitON(servoRegisterD,i-16);
     }
   }  
 }
@@ -370,16 +407,14 @@ int newAnalogRead(int pin){
     if (pinForAnalog[i]==pin){
         uint8_t Highbyte =  value >>8;
         uint8_t Lowbyte = value;
-    
-        int value=analogRead(pin);
-        arrayRead[pin][0]= Highbyte;
-        arrayRead[pin][1]= Lowbyte;
+        arrayRead[pin][0] = unsigned char(Highbyte);
+        arrayRead[pin][1] = unsigned char(Lowbyte);
     }
   }
   return value;
 }
 
-void boardInfo(void){
+void boardInfo(){
 while(true){
 sendChar(BOARD_INFO)
 sendString(BoardIdentify::type);
@@ -400,13 +435,12 @@ if(receivedAction==RECEIVED){
 }
 
       
-void receiveData(void){
+void receiveData(){
+  
 int counter=0;
-String receivedRawString="";
-String receivedPWM="";
-String receivedServo="";
-String bufferPWM;
-String bufferServo;
+unsigned char receivedRawString[56];
+unsigned char receivedPWM[22];
+unsigned char receivedServo[22];
 int counterPWM=0;
 int counterServo=0;
 uint8_t bufferPortB;
@@ -428,75 +462,45 @@ while(true){
   counter=0;
   break;  
   }
-  ++counter
+  ++counter;
 }
 
-bufferPortD=receivedRawString[0];
-bufferRegisterPWMD=receivedRawString[1];
-bufferRegisterServoD=receivedRawString[2]
+bufferPortD= uint8_t(receivedRawString[0]);
+bufferRegisterPWMD= uint8_t(receivedRawString[1]);
+bufferRegisterServoD= uint8_t(receivedRawString[2]);
 
-bufferPortD=receivedRawString[3]
-bufferRegisterPWMC=receivedRawString[4];
-bufferRegisterServoC;=receivedRawString[5];
+bufferPortC= uint8_t(receivedRawString[3]);
+bufferRegisterPWMC= uint8_t(receivedRawString[4]);
+bufferRegisterServoC= uint8_t(receivedRawString[5]);
 
-bufferPortD=receivedRawString[6]
-bufferRegisterPWMB=receivedRawString[7];;
-bufferRegisterServoB=receivedRawString[8];;
+bufferPortB= uint8_t(receivedRawString[6]);
+bufferRegisterPWMB= uint8_t(receivedRawString[7]);
+bufferRegisterServoB= uint8_t(receivedRawString[8]);;
 
-for(i=0;i<8;i++){
-if(bufferRegisterPWMD.bitRead(i)==1){
-++counterRegisterPWM;
-}
-}
-for(i=0;i<8;i++){
-if(bufferRegisterPWMC.bitRead(i)==1){
-++counterRegisterPWM;
-}
-}
+couterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegisterPWMC) + counterBitON(bufferRegisterPWMB);
 
-for(i=0;i<8;i++){
-if(bufferRegisterPWMB.bitRead(i)==1){
-++counterRegisterPWM;
-}
-}
+couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
 
-for(i=0;i<8;i++){
-if(bufferRegisterServoD.bitRead(i)==1){
-++counterRegisterServo;
-}
-}
-for(i=0;i<8;i++){
-if(bufferRegisterServoC.bitRead(i)==1){
-++counterRegisterServo;
-}
-}
-
-for(i=0;i<8;i++){
-if(bufferRegisterServoB.bitRead(i)==1){
-++counterRegisterServo;
-}
-}
-
-
-for(i=9;i<134;i++){
+for(int i=9;i<56;i++){
   if (receivedRawString[i]==IS_PWM){
     if(receivedRawString[i+1]!=IS_SERVO){
-    receivedPWM=receivedRawString[i+1]
+    receivedPWM[counterPWM] = receivedRawString[i+1];
     ++counterPWM;
     }
     else{
       if(receivedRawString[i+2]!=END){
-        receivedServo=receivedRawString[i+2]
+        receivedServo[counterServo] = receivedRawString[i+2];
         ++counterServo; 
       }
      }
     }
   break;
   }
-for(i=9;i<134;i++){
+  
+for(int i=9;i<56;i++){
   if (receivedRawString[i]==IS_SERVO){
     if(receivedRawString[i+1]!=END){
-    receivedServo=receivedRawString[i+1]
+    receivedServo[counterServo] = receivedRawString[i+1];
     ++counterServo;
     }
     else{
@@ -505,18 +509,75 @@ for(i=9;i<134;i++){
     }
   }
 
-
   if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo){
   sendChar(RESEND);
   receiveData();
   }
   
   sendChar(RECEIVED);
-    
 
+  PORTD = bufferPortD;
+  PORTC = bufferPortC;
+  PORTB = bufferPortB;
+
+  int placercounter=0;
+
+  for (int i=0; i<24; i++){
+    pwmData[i]=0;
+    if (i<8){
+      if(bitON(bufferRegisterPWMB,i)){
+        pwmData[i] = receivedPWM[placercounter];
+        analogWrite(i,int(pwmData[i]));
+        ++placercounter;
+        }
+    }
+    else if (i<16){
+          if(bitON(bufferRegisterPWMC,i-8)){
+            pwmData[i]= receivedPWM[placercounter];
+            analogWrite(i,int(pwmData[i]));
+            ++placercounter;
+          }
+    }
+    else{
+         if(bitON(bufferRegisterPWMD,i-16)){
+            pwmData[i] = receivedPWM[placercounter];
+            analogWrite(i,int(pwmData[i]));
+            ++placercounter;
+          }
+    }
+  }
+
+  placercounter=0;
+  
+  for (int i=0; i<24; i++){
+    servoData[i]=0;
+    if (i<8){
+      if(bitON(bufferRegisterServoB,i)){
+        servoData[i] = receivedServo[placercounter];
+        myServo.attach(i);
+        myServo.write(int(servoData[i]));
+        ++placercounter;
+      }
+    }
+    else if (i<16){
+          if(bitON(bufferRegisterServoC,i-8)){
+            servoData[i] = receivedServo[placercounter];
+            myServo.attach(i);
+            myServo.write(int(servoData[i]));
+            ++placercounter;
+          }
+    }
+    else{
+         if(bitON(bufferRegisterServoD,i-16)){
+            servoData[i] = receivedServo[placercounter];
+            myServo.attach(i);
+            myServo.write(int(servoData[i]));
+
+            ++placercounter;
+          }
+    }
+  }
 }
-  
-  
 
 
    
@@ -709,11 +770,10 @@ const float VOLTS_FACTOR_IN_OP = 1 ;  // THIS IS A FACTOR TO AMPLIFY THE SIGNAL 
                                                       
 // Function to transform analog read to voltage according constant voltage divider
 
-float analogVoltageConvertion(int read , float voltFactor)
- {
+float analogVoltageConvertion(int read , float voltFactor){
   float voltage=0;
-voltage = read * ANALOG_VOLTS * voltFactor ;
-return voltage;
+  voltage = read * ANALOG_VOLTS * voltFactor ;
+  return voltage;
 }
 
 // convertion from analog read to analog write
@@ -828,6 +888,8 @@ void Setup_menu_call(){
 
 char key = keyPad.getChar();
 
+void lcdTimeMainMenu (String message1, String message2);
+
 if (key == '#') {
           lcdTimeMainMenu(set_clock_time1,set_clock_time2);
           }
@@ -843,6 +905,8 @@ void lcdTimeMainMenu (String message1, String message2) {
 int timeAppend=0;
 char key;
 
+void lcdMenuA(void);
+
 lcdSetupTimes(message1, message2);
     
 while (true){
@@ -852,7 +916,7 @@ key= keyPad.getChar();
 }
 switch (key){
   case 'A':
-  lcdmenuA();
+  lcdMenuA();
   break;
  case 'B':
   break;
@@ -867,7 +931,10 @@ switch (key){
 }
 }
 
-void lcdmenuA(){
+void TimeSetAppend(void);
+void ClockAppend(void);
+
+void lcdMenuA(void){
 
 char key;  
 lcdSetupTimes(clock_or_time1, clock_or_time1);
@@ -892,7 +959,7 @@ switch (key){
 }
 
 
-void ClockAppend(){
+void ClockAppend(void){
 int hours;
 int minutes;  
 char key;
@@ -969,7 +1036,7 @@ break;
 }
 
 
-void TimeSetAppend(){
+void TimeSetAppend(void){
 
 int hours;
 int minutes;  
