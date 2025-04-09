@@ -101,9 +101,14 @@ void initSerial(void){
 
 unsigned char receiveChar(){
   while(!(UCSR0A & (1<<RXC0))){
+    
+  if ( UCSR0A & (1<<FE0)|(1<<DOR0)|(1<<PE0) ){
+return -1;
+}
   return UDR0;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
 }
 }
+
 
 void sendChar(unsigned char data){
   while(!(UCSR0A & (1<<UDRE0))){
@@ -116,6 +121,11 @@ void sendString(char *StringPtr){
   while (*StringPtr != 0x00){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
     sendChar(*StringPtr);
   }
+}
+
+void flush(){
+unsigned char dummy;
+while ( UCSR0A & (1<<RXC0) ) dummy = UDR0;  
 }
 
 const char SEND_STATUS=17; // THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
@@ -185,8 +195,12 @@ const int PC_REGISTERS_UPDATE = 14; // THIS IS TO SEND ALL THE REGISTERS AND DAT
 // ALL THESE STORE LAST SENT TO AVOID RESEND THE SAME
  
 uint8_t prevPortB;
+uint8_t prevDDRB;
 uint8_t prevPortC;
+uint8_t prevDDRC;
 uint8_t prevPortD;
+uint8_t prevDDRD;
+
 unsigned char prevArrayRead [7][1];
 unsigned char prevpwmData [ROW];
 unsigned char prevservoData [ROW];
@@ -214,6 +228,11 @@ void listen_PC_Start(){
 
 receivedAction= receiveChar();
 
+while(receiveAction==-1){
+  flush();
+  receivedAction= receiveChar();
+}
+
 // THIS IS NOT USED IS FOR THREAD AND TIMING OF THREADS
 
   while (receivedAction==WAIT){
@@ -234,13 +253,15 @@ receivedAction= receiveChar();
     if( PORTD != prevPortD){
 
       sendChar(unsigned char (PORTD));
+      sendChar(unsigned char (DDRD));
       sendChar(unsigned char (pwmRegisterD));
       sendChar(unsigned char(servoRegisterD));
-    }
+          }
     
     if( PORTC != prevPortC){
     
       sendChar(unsigned char (PORTC));
+      sendChar(unsigned char (DDRC));
       sendChar(unsigned char (pwmRegisterC));
       sendChar(unsigned char (servoRegisterC));
     }
@@ -248,6 +269,7 @@ receivedAction= receiveChar();
     if( PORTB != prevPortB){
 
       sendChar(unsigned char (PORTB));
+      sendChar(unsigned char (DDRB));
       sendChar(unsigned char (pwmRegisterB));
       sendChar(unsigned char(servoRegisterB));      
     }
@@ -309,14 +331,18 @@ receivedAction= receiveChar();
         while (receivedAction==WAIT){
         }
         if (receivedAction==RESEND) {
+          flush();
           listen_PC_Start();
         }
       }
        while (receivedAction!=RECEIVED);
     
   prevPortB = PORTB;
+  prevDDRB = DDRB;
   prevPortC = PORTC;
+  prevDDRB = DDRB;
   prevPortD = PORTD;
+  prevDDRB = DDRB;
   prevArrayRead = arrayRead;
   prevpwmData = pwmData;
   prevservoData = servoData; 
@@ -346,8 +372,6 @@ unsigned int counterBitON(uint8_t data){
   return count  
   }
     
-
-
 void newAnalogWrite(int pin, int value){  
   for (int i=0; i<sizeof(pinForPWM); i++){
     if (pinForPWM[i]==pin){
@@ -430,23 +454,27 @@ receivedAction= receiveChar();
 if(receivedAction==RECEIVED){
  break; 
 }
+else{
+  flush();
 }
-
+}
 }
 
       
 void receiveData(){
   
 int counter=0;
-unsigned char receivedRawString[56];
+unsigned char receivedRawString[59];
 unsigned char receivedPWM[22];
 unsigned char receivedServo[22];
 int counterPWM=0;
 int counterServo=0;
 uint8_t bufferPortB;
+uint8_t bufferDDRB;
 uint8_t bufferPortC;
+uint8_t bufferDDRC;
 uint8_t bufferPortD;
-uint8_t bufferRegisterPWMB;
+uint8_t bufferDDRD;
 uint8_t bufferRegisterPWMC;
 uint8_t bufferRegisterPWMD;
 uint8_t bufferRegisterServoB;
@@ -466,22 +494,25 @@ while(true){
 }
 
 bufferPortD= uint8_t(receivedRawString[0]);
-bufferRegisterPWMD= uint8_t(receivedRawString[1]);
-bufferRegisterServoD= uint8_t(receivedRawString[2]);
+bufferDDRD= uint8_t(receivedRawString[1]);
+bufferRegisterPWMD= uint8_t(receivedRawString[2]);
+bufferRegisterServoD= uint8_t(receivedRawString[3]);
 
-bufferPortC= uint8_t(receivedRawString[3]);
-bufferRegisterPWMC= uint8_t(receivedRawString[4]);
-bufferRegisterServoC= uint8_t(receivedRawString[5]);
+bufferPortC= uint8_t(receivedRawString[4]);
+bufferDDRC= uint8_t(receivedRawString[5]);
+bufferRegisterPWMC= uint8_t(receivedRawString[6]);
+bufferRegisterServoC= uint8_t(receivedRawString[7]);
 
-bufferPortB= uint8_t(receivedRawString[6]);
-bufferRegisterPWMB= uint8_t(receivedRawString[7]);
-bufferRegisterServoB= uint8_t(receivedRawString[8]);;
+bufferPortB= uint8_t(receivedRawString[8]);
+bufferDDRB= uint8_t(receivedRawString[9]);
+bufferRegisterPWMB= uint8_t(receivedRawString[10]);
+bufferRegisterServoB= uint8_t(receivedRawString[11]);;
 
 couterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegisterPWMC) + counterBitON(bufferRegisterPWMB);
 
 couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
 
-for(int i=9;i<56;i++){
+for(int i=12;i<59;i++){
   if (receivedRawString[i]==IS_PWM){
     if(receivedRawString[i+1]!=IS_SERVO){
     receivedPWM[counterPWM] = receivedRawString[i+1];
@@ -489,7 +520,7 @@ for(int i=9;i<56;i++){
     }
     else{
       if(receivedRawString[i+2]!=END){
-        receivedServo[counterServo] = receivedRawString[i+2];
+        receivedServo[counterServo] = receivedRawString[i+1];
         ++counterServo; 
       }
      }
@@ -497,9 +528,9 @@ for(int i=9;i<56;i++){
   break;
   }
   
-for(int i=9;i<56;i++){
+for(int i=12;i<59;i++){
   if (receivedRawString[i]==IS_SERVO){
-    if(receivedRawString[i+1]!=END){
+    if(receivedRawString[i+2]!=END){
     receivedServo[counterServo] = receivedRawString[i+1];
     ++counterServo;
     }
@@ -517,8 +548,11 @@ for(int i=9;i<56;i++){
   sendChar(RECEIVED);
 
   PORTD = bufferPortD;
+  DDRD = bufferDDRD;
   PORTC = bufferPortC;
+  DDRC = bufferDDRC;
   PORTB = bufferPortB;
+  DDRB = bufferDDRB;
 
   int placercounter=0;
 
@@ -562,7 +596,7 @@ for(int i=9;i<56;i++){
     else if (i<16){
           if(bitON(bufferRegisterServoC,i-8)){
             servoData[i] = receivedServo[placercounter];
-            myServo.attach(i);
+            myServo.attach(i); 
             myServo.write(int(servoData[i]));
             ++placercounter;
           }
