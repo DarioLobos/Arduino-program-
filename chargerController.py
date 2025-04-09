@@ -146,11 +146,11 @@ def counterBitON(uint8_t data){
 def receiveData():
   
     int counter=0;
-    for i in range (59):
+    for i in range (76):
         receivedRawString = dict([(f'{i}',0)]) # ARRAY TO STORE INCOMMING CHARACTERS
-    for i in range (22):
+    for i in range (f'{ROW}'):
         receivedPWM = dict([(f'{i}',0)]) # ARRAY TO STORE INCOMMING PWM CHARACTERS
-    for i in range (22):
+    for i in range (f'{ROW}'):
         receivedServo = dict([(f'{i}',0)]) # ARRAY TO STORE INCOMMING PWM CHARACTERS
     for i in range (8):
         for v in range (2):
@@ -169,6 +169,7 @@ def receiveData():
     bufferRegisterServoB=0
     bufferRegisterServoC=0
     bufferRegisterServoD=0
+    counterArrayRead=0  
     counterRegisterPWM=0
     counterRegisterServo=0
     ser.write(chr(SEND_STATUS)) 
@@ -200,25 +201,26 @@ def receiveData():
 
     couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
 
-    for in range(12,59):
-        if (receivedRawString[f'{i}']==chr(IS_PWM)):
-            if(receivedRawString[f'{i+1}']!=chr(IS_SERVO)):
-                receivedPWM[f'{counterPWM}'] = receivedRawString[f'{i+1}']
-                counterPWM+= counterPWM
+    doneReadArrayRead = False
+    doneReadPWM = False
     
+    for in range(12,76):
+    
+        if (receivedRawString[f'{i+1']!=chr(IS_PWM) | !dondeReadArrayRead):
+                receivedArrayRead[f'{counterArrayRead}'] = receivedRawString[f'{i}']
+                counterArrayRead+= counterArrayRead
         else:
-            if(receivedRawString[f'{i+2}']!=chr(END)):
-                receivedServo[f'{counterServo}'] = receivedRawString[f'{i+1}']
-                counterServo+=counterServo      
-        break
-  
-    for in range(12,59):
-        if (receivedRawString[f'{i}']==chr(IS_SERVO)):
-            if(receivedRawString[f'{i+2}']!=chr(END)):
-                receivedServo[f'{counterServo}'] = receivedRawString[i+1];
-                counterServo+=counterServo
-        else:
-            break
+            doneReadArrayRead = True
+            if (receivedRawString[f'{i+1}']!=chr(IS_SERVO) | doneReadArrayRead | !doneReadPWM):
+                receivedPWM[f'{counterPWM}'] = receivedRawString[f'{i}']
+                counterPWM+= counterPWM
+            else:
+                doneReadPWM=True
+                if(receivedRawString[f'{i+1}']!=chr(END)| doneReadArrayRead | doneReadPWM):
+                    receivedServo[f'{counterServo}'] = receivedRawString[f'{i}']
+                    counterServo+=counterServo
+                else:
+                    break
     
     if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo):
         ser.flush()  
@@ -228,8 +230,54 @@ def receiveData():
     sendChar(RECEIVED);
     flush();
 
+    PORTD = bufferPortD
+    DDRD = bufferDDRD
+    PORTC = bufferPortC
+    DDRC = bufferDDRC
+    PORTB = bufferPortB
+    DDRB = bufferDDRB
 
-    
+    placercounter=0
+
+    for i in range (8):
+        for v in range (2):
+            arrayRead[F'{i}{v}'] = receivedArrayRead[F'{i}{v}']
+
+    placercounter=0
+
+    for i in range(f'{ROW}'):
+        pwmData[f'{i}']=0
+        if (i<8):
+            if(bitON(bufferRegisterPWMB,i)):
+                pwmData['f{i}'] = receivedPWM[f'{placercounter}']
+                ++placercounter
+        else if (i<16):
+            if(bitON(bufferRegisterPWMC,i-8)){
+                pwmData[f'{i}']= receivedPWM[f'{placercounter}']
+                ++placercounter
+        else:
+            if(bitON(bufferRegisterPWMD,i-16)){
+                pwmData['F{i}'] = receivedPWM[f'{placercounter}']
+                ++placercounter
+
+    placercounter=0
+  
+    for i in range(f'{ROW}'):
+        servoData[f'{i}']=0;
+        if (i<8):
+            if(bitON(bufferRegisterServoB,i)):
+                servoData[f'{i}'] = receivedServo[f'{placercounter}']
+                ++placercounter
+        else if (i<16){
+            if(bitON(bufferRegisterServoC,i-8)):
+                servoData[f'{i}'] = receivedServo[f'{placercounter}']
+                ++placercounter
+        else{
+            if(bitON(bufferRegisterServoD,i-16)):
+            servoData[f'{i}'] = receivedServo[f'{placercounter}']
+            ++placercounter
+          
+
 #ARDUINO PORTS IN ARDUINO PROGRAM .INO
 # const int PC_CONTROL_PIN= 6
 # const int mosfet_1_pin = A6 ;
