@@ -10,19 +10,7 @@ from tkinter import ttk
 from tkinter import messagebox
 from PIL import ImageTk, Image
 import os
-# import pyfirmata2
-# import pymata
-# in the easyarduino library I had to modidify the import to firmata2
-# \Lib\site-packages\easyarduino\arduino_controller.py and __init__  
-# because firmata through an error if the arduino is not connected
-# firmata2 is almost to same but more complete
-
-import easyarduino
-from time import sleep
-#from PyFirmata2 import Arduino, util
-#from PyFirmata2 import INPUT, OUTPUT, PWM
-from easyarduino import ArduinoController,get_arduino_ports
-import re
+import serial
 
 # Define analog ports as in pins_arduino.h ARE NOT DEFINED IN Pyfirmata and easyarduino
 # define PIN_A0   (14)
@@ -44,35 +32,202 @@ A5= 19
 A6= 20
 A7= 21
 
-# FROM FIRMATA AND FIRMATA2
-
-UNAVAILABLE = -1
-INPUT = 0          # as defined in wiring.h
-OUTPUT = 1         # as defined in wiring.h
-ANALOG = 2         # analog pin in analogInput mode
-PWM = 3            # digital pin in PWM output mode
-SERVO = 4          # digital pin in SERVO mode
-INPUT_PULLUP = 11  # Same as INPUT, but with the pin's internal pull-up resistor enabled
-
 
 # Define port type
-ArduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
+arduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
 
-# Define board using Pyfirmata easy airduino do the same inside of class
-# board = Arduino(ArduinoPort)
-# it = util.Iterator(board)
-# it.start()
+#_____________________________________________________________________#
+#                                                                     #
+#                           SERIAL PROTOCOL                           #
+#_____________________________________________________________________#
 
-# Define an unavaliable flag
+ser =serial.Serial(arduinoPort)
 
-controller= None 
+# THESE ARE THE VARIABLES USED TO STORE ARDUINO STATUS RECEIVED AND ALSO
+# TO MODIFIED AND SEND THEM BACK TO CHANGE ARDUINO CONFIGURATION
 
-# Define board using easy arduino library Iterator and board is in class and use controller
+PORTB=0
+PORTC=0
+PORTD=0
+DDRB=0
+DDRC=0
+DDRD=0
 
-try:
-    controller = ArduinoController(port= ArduinoPort)
-except:
-    controller= None
+SEND_STATUS=17; # THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
+RECEIVED=23;  # THIS IS THE IDENTIFIER FOR SEND OF DATA
+
+IS_ANALOG_READ = 28
+
+ROW=22
+
+for i in range (8):
+    for v in range (2):
+        arrayRead = dict([(f'{i}{v}',0)]) # ARRAY TO STORE ANALOG READ 1=HIGH 0=LOW BYTE
+IS_PWM= 18
+pwmRegisterB = 0
+pwmRegisterC = 0
+pwmRegisterD = 0
+
+for i in range (8):
+    pwmData = dict([(f'{i}',0)])  # ARRAY TO STORE PWM DATA
+    
+IS_SERVO= 20
+
+servoRegisterB = 0 # REGISTERS TO IDENTIFY EACH SERVO PIN
+servoRegisterC = 0
+servoRegisterD = 0
+
+for i in range (8):
+    servoData = dict([(f'{i}',0)]) # ARRAY TO STORE PWM DATA
+
+RESEND= 19
+WAIT= 22
+END = 23
+BOARD_INFO =6; # THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER LIBRARY
+PC_REGISTERS_UPDATE = 14; # THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
+
+# ALL THESE STORE LAST SENT TO AVOID RESEND THE SAME
+ 
+prevPortB = 0
+prevDDRB = 0
+prevPortC = 0
+prevDDRC = 0
+prevPortD = 0
+prevDDRD = 0
+
+# TO SET DIGITAL PINS CAN BE USED DIRECT PINBx WHICH WILL BECOME OUTPUT
+# INDEPENDENT OF DDR. I PREFER USE THIS TO AVOID PROBLEMS WITH ANALOG
+
+for i in range (8):
+    prevpwmData = dict([(f'{i}',0)])  # ARRAY TO STORE PREVIOS PWM DATA
+    prevservoData = dict([(f'{i}',0)])  # ARRAY TO STORE PREVIOS SERVO DATA
+
+
+def receiveBoardInfo():
+
+    ser.open()
+    ser.write(chr(BOARD_INFO))
+    answer_sending=ser.read(1)
+    if ( answer_sending == chr(BOARD_INFO)):
+        boardInfoType = ser.readline()
+        boardInfoMake = ser.readline()
+        boardInfoModel = ser.readline()
+        boardInfoMCU = ser.readline()
+        boardDictionary = dict([('Type', boardInfoType),('Make', boardInfoMake),('Model', boardInfoModel),('MCU', boardInfoMCU)])           answer_sending=ser.read(1)
+        answer_sending=ser.read(1)
+        if(answer_sending!=chr(END)):
+            ser.flush()
+            sendBoardInfo()
+        else:
+            ser.write(chr(RECEIVED))            
+    else:
+        ser.flush()
+        sendBoardInfo()
+        
+    return  boardDictionary
+
+# IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
+
+def setBit( n, pos):
+        n|=( 1<< pos )
+
+
+def bitON( n, pos):
+        return ( n & (1<<pos)!=0)
+
+
+def counterBitON(uint8_t data){
+  int count=0;
+  while(data>0){
+      data &= (data-1) 
+      count+=count
+  return count  
+
+def receiveData():
+  
+    int counter=0;
+    for i in range (59):
+        receivedRawString = dict([(f'{i}',0)]) # ARRAY TO STORE INCOMMING CHARACTERS
+    for i in range (22):
+        receivedPWM = dict([(f'{i}',0)]) # ARRAY TO STORE INCOMMING PWM CHARACTERS
+    for i in range (22):
+        receivedServo = dict([(f'{i}',0)]) # ARRAY TO STORE INCOMMING PWM CHARACTERS
+    for i in range (8):
+        for v in range (2):
+            receivedArrayRead = dict([(f'{i}{v}',0)]) # ARRAY TO STORE INCOMMING ANALOG READ 1=HIGH 0=LOW BYTE
+
+    counterPWM=0
+    counterServo=0
+    bufferPortB=0
+    bufferDDRB=0
+    bufferPortC=0
+    bufferDDRC=0
+    bufferPortD=0
+    bufferDDRD=0
+    bufferRegisterPWMC=0
+    bufferRegisterPWMD=0
+    bufferRegisterServoB=0
+    bufferRegisterServoC=0
+    bufferRegisterServoD=0
+    counterRegisterPWM=0
+    counterRegisterServo=0
+    ser.write(chr(SEND_STATUS)) 
+    while(ser.read(1)!=chr(SEND_STATUS):
+        ser.flush()
+        ser.write(chr(SEND_STATUS))
+    while(true):
+        receivedRawString[f'{counter}']=ser.read(1)
+        if(receivedRawString[f'{counter}']==END){
+          counter=0
+          break  
+        counter+=counter
+    bufferPortD= receivedRawString[f'0'])
+    bufferDDRD= receivedRawString[f'1'])
+    bufferRegisterPWMD= receivedRawString[f'2'])
+    bufferRegisterServoD= receivedRawString[f'3'])
+
+    bufferPortC= receivedRawString[f'4']
+    bufferDDRC= receivedRawString[f'5']
+    bufferRegisterPWMC= receivedRawString[f'6']
+    bufferRegisterServoC= receivedRawString[f'7']
+
+    bufferPortB= receivedRawString[f'8']);
+    bufferDDRB= receivedRawString[f'9']);
+    bufferRegisterPWMB= receivedRawString[f'10']);
+    bufferRegisterServoB= receivedRawString[f'11']);;
+
+    couterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegisterPWMC) + counterBitON(bufferRegisterPWMB);
+
+    couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
+
+    for in range(12,59):
+        if (receivedRawString[f'{i}']==chr(IS_PWM)):
+            if(receivedRawString[f'{i+1}']!=chr(IS_SERVO)):
+                receivedPWM[f'{counterPWM}'] = receivedRawString[f'{i+1}']
+                counterPWM+= counterPWM
+    
+        else:
+            if(receivedRawString[f'{i+2}']!=chr(END)):
+                receivedServo[f'{counterServo}'] = receivedRawString[f'{i+1}']
+                counterServo+=counterServo      
+        break
+  
+    for in range(12,59):
+        if (receivedRawString[f'{i}']==chr(IS_SERVO)):
+            if(receivedRawString[f'{i+2}']!=chr(END)):
+                receivedServo[f'{counterServo}'] = receivedRawString[i+1];
+                counterServo+=counterServo
+        else:
+            break
+    
+    if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo):
+        ser.flush()  
+        ser.write(chr(RESEND))
+        receiveData()
+    
+    sendChar(RECEIVED);
+    flush();
+
 
     
 #ARDUINO PORTS IN ARDUINO PROGRAM .INO
