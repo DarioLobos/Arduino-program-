@@ -243,7 +243,7 @@ while(receiveAction==-1){
    }
 
    if (receivedAction==PC_REGISTERS_UPDATE) {
-    receibeData();
+    receiveData();
    }
 
   if (receivedAction==SEND_STATUS) {
@@ -273,8 +273,10 @@ while(receiveAction==-1){
       sendChar(unsigned char (pwmRegisterB));
       sendChar(unsigned char(servoRegisterB));      
     }
-    
+
 // SEND ANALOG READ DATA
+
+    sendChar(IS_ANALOG_READ);
 
     if (arrayRead != prevArrayRead){
 
@@ -283,7 +285,7 @@ while(receiveAction==-1){
         
       for (int i=0; i<8 ;i++){
         if (arrayRead[i][0]!= 0 & arrayRead[i][1]!= 0){ 
-           if(arrayRead[i][0]!= prevArrayRead[i][0] & arrayRead[i][1]!= prevArrayRead[i][1]) {
+           if(arrayRead[i][0]!= prevArrayRead[i][0] | arrayRead[i][1]!= prevArrayRead[i][1]) {
             byteLow= arrayRead[i][0];
             byteHigh=arrayRead[i][1];
             sendChar(byteHigh);
@@ -307,10 +309,9 @@ while(receiveAction==-1){
       }
     }
     
-    
+//SEND DERVO INFO
+   sendChar(IS_SERVO);
   if (servoData != prevservoData){
-
-    sendChar(IS_SERVO);
     
     for (int i=0; i<ROW ;i++){
       if (servoData[i]!= 0){ 
@@ -482,7 +483,6 @@ uint8_t bufferRegisterServoC;
 uint8_t bufferRegisterServoD;
 int counterRegisterPWM=0;
 int counterRegisterServo=0;
-
 
 while(true){
   receivedRawString[counter]=receiveChar();

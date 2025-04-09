@@ -156,6 +156,7 @@ def receiveData():
         for v in range (2):
             receivedArrayRead = dict([(f'{i}{v}',0)]) # ARRAY TO STORE INCOMMING ANALOG READ 1=HIGH 0=LOW BYTE
 
+    counterArrayRead=0  
     counterPWM=0
     counterServo=0
     bufferPortB=0
@@ -169,19 +170,27 @@ def receiveData():
     bufferRegisterServoB=0
     bufferRegisterServoC=0
     bufferRegisterServoD=0
-    counterArrayRead=0  
+    counterDDRDArrayRead=0
     counterRegisterPWM=0
     counterRegisterServo=0
-    ser.write(chr(SEND_STATUS)) 
+    ser.write(chr(SEND_STATUS))
+      
     while(ser.read(1)!=chr(SEND_STATUS):
         ser.flush()
         ser.write(chr(SEND_STATUS))
+
     while(true):
         receivedRawString[f'{counter}']=ser.read(1)
         if(receivedRawString[f'{counter}']==END){
           counter=0
           break  
         counter+=counter
+
+    if (receivedRawString[f'12']!=chr(IS_ANALOG_READ)):
+        ser.flush()  
+        ser.write(chr(RESEND))
+        receiveData()
+        
     bufferPortD= receivedRawString[f'0'])
     bufferDDRD= receivedRawString[f'1'])
     bufferRegisterPWMD= receivedRawString[f'2'])
@@ -197,15 +206,16 @@ def receiveData():
     bufferRegisterPWMB= receivedRawString[f'10']);
     bufferRegisterServoB= receivedRawString[f'11']);;
 
-    couterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegisterPWMC) + counterBitON(bufferRegisterPWMB);
 
+    counterDDRDArrayRead = 8 - counterBitON(bufferDDRD)
+    couterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegisterPWMC) + counterBitON(bufferRegisterPWMB);
     couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
 
     doneReadArrayRead = False
     doneReadPWM = False
     
     for in range(12,76):
-    
+        if (receivedRawString[f'12']!=chr() | !dondeReadArrayRead):
         if (receivedRawString[f'{i+1']!=chr(IS_PWM) | !dondeReadArrayRead):
                 receivedArrayRead[f'{counterArrayRead}'] = receivedRawString[f'{i}']
                 counterArrayRead+= counterArrayRead
@@ -222,7 +232,7 @@ def receiveData():
                 else:
                     break
     
-    if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo):
+    if (counterArrayRead!=counterDDRDArrayRead | counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo):
         ser.flush()  
         ser.write(chr(RESEND))
         receiveData()
@@ -241,8 +251,10 @@ def receiveData():
 
     for i in range (8):
         for v in range (2):
-            arrayRead[F'{i}{v}'] = receivedArrayRead[F'{i}{v}']
-
+            if(!bitON(bufferDDRD,i)):
+            arrayRead[F'{i}{v}'] = receivedArrayRead[f'{placercounter}']
+            ++placercounter
+            
     placercounter=0
 
     for i in range(f'{ROW}'):
@@ -276,7 +288,96 @@ def receiveData():
             if(bitON(bufferRegisterServoD,i-16)):
             servoData[f'{i}'] = receivedServo[f'{placercounter}']
             ++placercounter
-          
+            
+# THIS IS THE FUNCTION TO SEND BOARD ACTIONS          
+
+def sendBoardUpdate():
+    
+    ser.write(PC_REGISTERS_UPDATE))
+    resivedAction=ser.read(1)
+    while (receivedAction==chr(WAIT)):
+        pass
+    while (receivedAction!=chr(PC_REGISTERS_UPDATE)):
+        ser.write(chr(PC_REGISTERS_UPDATE))
+        resivedAction=ser.read(1)
+        while (receivedAction==chr(WAIT)):
+            pass
+            if (receivedAction==RESEND):
+                ser,flush()
+                sendBoardUpdate()
+    
+    resivedAction=ser.read(1)
+
+    if( PORTD != prevPortD):
+
+        ser.write(chr(PORTD))
+        ser.write(chr((DDRD))
+        ser.write(chr(pwmRegisterD))
+        ser.write(chr(servoRegisterD))
+    
+    if( PORTC != prevPortC):
+    
+        ser.write(chr(PORTC))
+        ser.write(chr(DDRC))
+        ser.write(chr(pwmRegisterC))
+        ser.write(chr(servoRegisterC))
+    }
+
+    if( PORTB != prevPortB):
+
+        ser.write(chr((PORTB))
+        ser.write(chr((DDRB))
+        ser.write(chr((pwmRegisterB))
+        ser.write(chr((servoRegisterB))      
+    }
+
+# SEND PWM INFO
+
+    ser.write(chr(IS_PWM));
+
+    if (pwmData != prevpwmData):
+        for i in range(ROW):
+            if (pwmData[f'{i}']!= 0): 
+                if (pwmData[f'{i}']!= prevpwmData[f'{i}']){ 
+                    ser.write(chr(pwmData[f'{i}']));
+
+# SEND SERVO INFO
+                    
+    sendChar(IS_SERVO);
+
+    if (servoData != prevservoData:
+        for i in range(8):
+            if (servoData[f'{i}']!= 0): 
+                if (servoData[f'{i}']!= prevservoData[f'{i}']) 
+                    ser.write(chr(servoData[f'{i}']))
+    ser.write(chr(END))
+
+# ASK RECEIVED FROM ARDUIND
+    
+    
+    resivedAction=ser.read(1)
+    while (receivedAction==WAIT):
+        pass
+    if (receivedAction==RESEND):
+                ser,flush()
+                sendBoardUpdate()
+    while (receivedAction!=RECEIVED)
+        resivedAction=ser.read(1)
+        while (receivedAction==WAIT):
+            pass
+            if (receivedAction==RESEND):
+                ser,flush()
+                sendBoardUpdate()
+                
+    prevPortB = PORTB;
+    prevDDRB = DDRB;
+    prevPortC = PORTC;
+    prevDDRB = DDRB;
+    prevPortD = PORTD;
+    prevDDRB = DDRB;
+    prevArrayRead = arrayRead;
+    prevpwmData = pwmData;
+    prevservoData = servoData; 
 
 #ARDUINO PORTS IN ARDUINO PROGRAM .INO
 # const int PC_CONTROL_PIN= 6
