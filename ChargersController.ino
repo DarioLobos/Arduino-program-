@@ -465,8 +465,8 @@ void receiveData(){
   
 int counter=0;
 unsigned char receivedRawString[59];
-unsigned char receivedPWM[22];
-unsigned char receivedServo[22];
+unsigned char receivedPWM[ROW];
+unsigned char receivedServo[ROW];
 int counterPWM=0;
 int counterServo=0;
 uint8_t bufferPortB;
@@ -512,40 +512,34 @@ couterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegiste
 
 couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
 
+boolean doneReadPWM = False
+
 for(int i=12;i<59;i++){
-  if (receivedRawString[i]==IS_PWM){
-    if(receivedRawString[i+1]!=IS_SERVO){
-    receivedPWM[counterPWM] = receivedRawString[i+1];
+    if(receivedRawString[i+1]!=IS_SERVO | !doneReadPWM){
+    receivedPWM[counterPWM] = receivedRawString[i];
     ++counterPWM;
     }
     else{
-      if(receivedRawString[i+2]!=END){
-        receivedServo[counterServo] = receivedRawString[i+1];
+      doneReadPWM=True
+      if(receivedRawString[i+1]!=END){
+        receivedServo[counterServo] = receivedRawString[i];
         ++counterServo; 
       }
-     }
+      else{
+        break;
+      }
     }
-  break;
-  }
+    }
   
-for(int i=12;i<59;i++){
-  if (receivedRawString[i]==IS_SERVO){
-    if(receivedRawString[i+2]!=END){
-    receivedServo[counterServo] = receivedRawString[i+1];
-    ++counterServo;
-    }
-    else{
-     break;
-     }
-    }
-  }
 
   if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo){
+  flush()  
   sendChar(RESEND);
   receiveData();
   }
   
   sendChar(RECEIVED);
+  flush();
 
   PORTD = bufferPortD;
   DDRD = bufferDDRD;
@@ -556,7 +550,7 @@ for(int i=12;i<59;i++){
 
   int placercounter=0;
 
-  for (int i=0; i<24; i++){
+  for (int i=0; i<ROW; i++){
     pwmData[i]=0;
     if (i<8){
       if(bitON(bufferRegisterPWMB,i)){
@@ -583,7 +577,7 @@ for(int i=12;i<59;i++){
 
   placercounter=0;
   
-  for (int i=0; i<24; i++){
+  for (int i=0; i<ROW; i++){
     servoData[i]=0;
     if (i<8){
       if(bitON(bufferRegisterServoB,i)){
