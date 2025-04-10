@@ -83,6 +83,8 @@ for i in range (8):
 RESEND= 19
 WAIT= 22
 END = 23
+CHRNULL = 0
+
 BOARD_INFO =6; # THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER LIBRARY
 PC_REGISTERS_UPDATE = 14; # THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
 
@@ -113,7 +115,7 @@ def receiveBoardInfo():
         boardInfoMake = ser.readline()
         boardInfoModel = ser.readline()
         boardInfoMCU = ser.readline()
-        boardDictionary = dict([('Type', boardInfoType),('Make', boardInfoMake),('Model', boardInfoModel),('MCU', boardInfoMCU)])           answer_sending=ser.read(1)
+        boardDictionary = dict([('Type', boardInfoType),('Make', boardInfoMake),('Model', boardInfoModel),('MCU', boardInfoMCU)])
         answer_sending=ser.read(1)
         if(answer_sending!=chr(END)):
             ser.flush()
@@ -136,16 +138,16 @@ def bitON( n, pos):
         return ( n & (1<<pos)!=0)
 
 
-def counterBitON(uint8_t data){
-  int count=0;
-  while(data>0){
+def counterBitON(data):
+  count=0;
+  while(data>0):
       data &= (data-1) 
       count+=count
   return count  
 
 def receiveData():
   
-    int counter=0;
+    counter=0;
     for i in range (76):
         receivedRawString = dict([(f'{i}',0)]) # ARRAY TO STORE INCOMMING CHARACTERS
     for i in range (f'{ROW}'):
@@ -173,17 +175,19 @@ def receiveData():
     counterDDRDArrayRead=0
     counterRegisterPWM=0
     counterRegisterServo=0
+
     ser.write(chr(SEND_STATUS))
       
-    while(ser.read(1)!=chr(SEND_STATUS):
+    while(ser.read(1)!=chr(SEND_STATUS)):
         ser.flush()
         ser.write(chr(SEND_STATUS))
 
     while(true):
         receivedRawString[f'{counter}']=ser.read(1)
-        if(receivedRawString[f'{counter}']==END){
-          counter=0
-          break  
+        if(counter <0):
+            if(receivedRawString[f'{counter}']==chr(END) & receivedRawString[f'{counter-1}']==chr(CHRNULL)):
+                  counter=0
+                  break  
         counter+=counter
 
     if (receivedRawString[f'12']!=chr(IS_ANALOG_READ)):
@@ -191,20 +195,20 @@ def receiveData():
         ser.write(chr(RESEND))
         receiveData()
         
-    bufferPortD= receivedRawString[f'0'])
-    bufferDDRD= receivedRawString[f'1'])
-    bufferRegisterPWMD= receivedRawString[f'2'])
-    bufferRegisterServoD= receivedRawString[f'3'])
+    bufferPortD= receivedRawString[f'0']
+    bufferDDRD= receivedRawString[f'1']
+    bufferRegisterPWMD= receivedRawString[f'2']
+    bufferRegisterServoD= receivedRawString[f'3']
 
     bufferPortC= receivedRawString[f'4']
     bufferDDRC= receivedRawString[f'5']
     bufferRegisterPWMC= receivedRawString[f'6']
     bufferRegisterServoC= receivedRawString[f'7']
 
-    bufferPortB= receivedRawString[f'8']);
-    bufferDDRB= receivedRawString[f'9']);
-    bufferRegisterPWMB= receivedRawString[f'10']);
-    bufferRegisterServoB= receivedRawString[f'11']);;
+    bufferPortB= receivedRawString[f'8']
+    bufferDDRB= receivedRawString[f'9']
+    bufferRegisterPWMB= receivedRawString[f'10']
+    bufferRegisterServoB= receivedRawString[f'11']
 
 
     counterDDRDArrayRead = 8 - counterBitON(bufferDDRD)
@@ -214,19 +218,18 @@ def receiveData():
     doneReadArrayRead = False
     doneReadPWM = False
     
-    for in range(12,76):
-        if (receivedRawString[f'12']!=chr() | !dondeReadArrayRead):
-        if (receivedRawString[f'{i+1']!=chr(IS_PWM) | !dondeReadArrayRead):
+    for i in range(12,76):
+        if (doneReadArrayRead!=True & (receivedRawString[f'{i+2}']==chr(IS_PWM) & receivedRawString[f'{i+1}']==chr(CHRNULL))!=True):
                 receivedArrayRead[f'{counterArrayRead}'] = receivedRawString[f'{i}']
                 counterArrayRead+= counterArrayRead
         else:
             doneReadArrayRead = True
-            if (receivedRawString[f'{i+1}']!=chr(IS_SERVO) | doneReadArrayRead | !doneReadPWM):
+            if ( doneReadPWM!=True & (receivedRawString[f'{i+2}']==chr(IS_SERVO) & receivedRawString[f'{i+1}']==chr(CHRNULL))!=True):
                 receivedPWM[f'{counterPWM}'] = receivedRawString[f'{i}']
                 counterPWM+= counterPWM
             else:
                 doneReadPWM=True
-                if(receivedRawString[f'{i+1}']!=chr(END)| doneReadArrayRead | doneReadPWM):
+                if((receivedRawString[f'{i+2}']==chr(END) & receivedRawString[f'{i+1}']==chr(CHRNULL))!=True):
                     receivedServo[f'{counterServo}'] = receivedRawString[f'{i}']
                     counterServo+=counterServo
                 else:
@@ -251,9 +254,9 @@ def receiveData():
 
     for i in range (8):
         for v in range (2):
-            if(!bitON(bufferDDRD,i)):
-            arrayRead[F'{i}{v}'] = receivedArrayRead[f'{placercounter}']
-            ++placercounter
+            if(bitON(bufferDDRD,i)):
+                arrayRead[F'{i}{v}'] = receivedArrayRead[f'{placercounter}']
+                ++placercounter
             
     placercounter=0
 
@@ -263,12 +266,12 @@ def receiveData():
             if(bitON(bufferRegisterPWMB,i)):
                 pwmData['f{i}'] = receivedPWM[f'{placercounter}']
                 ++placercounter
-        else if (i<16):
-            if(bitON(bufferRegisterPWMC,i-8)){
+        elif (i<16):
+            if(bitON(bufferRegisterPWMC,i-8)):
                 pwmData[f'{i}']= receivedPWM[f'{placercounter}']
                 ++placercounter
         else:
-            if(bitON(bufferRegisterPWMD,i-16)){
+            if(bitON(bufferRegisterPWMD,i-16)):
                 pwmData['F{i}'] = receivedPWM[f'{placercounter}']
                 ++placercounter
 
@@ -280,20 +283,20 @@ def receiveData():
             if(bitON(bufferRegisterServoB,i)):
                 servoData[f'{i}'] = receivedServo[f'{placercounter}']
                 ++placercounter
-        else if (i<16){
+        elif (i<16):
             if(bitON(bufferRegisterServoC,i-8)):
                 servoData[f'{i}'] = receivedServo[f'{placercounter}']
                 ++placercounter
-        else{
+        else:
             if(bitON(bufferRegisterServoD,i-16)):
-            servoData[f'{i}'] = receivedServo[f'{placercounter}']
-            ++placercounter
+                servoData[f'{i}'] = receivedServo[f'{placercounter}']
+                ++placercounter
             
 # THIS IS THE FUNCTION TO SEND BOARD ACTIONS          
 
 def sendBoardUpdate():
     
-    ser.write(PC_REGISTERS_UPDATE))
+    ser.write(chr(PC_REGISTERS_UPDATE))
     resivedAction=ser.read(1)
     while (receivedAction==chr(WAIT)):
         pass
@@ -302,7 +305,7 @@ def sendBoardUpdate():
         resivedAction=ser.read(1)
         while (receivedAction==chr(WAIT)):
             pass
-            if (receivedAction==RESEND):
+            if (receivedAction==chr(RESEND)):
                 ser,flush()
                 sendBoardUpdate()
     
@@ -311,7 +314,7 @@ def sendBoardUpdate():
     if( PORTD != prevPortD):
 
         ser.write(chr(PORTD))
-        ser.write(chr((DDRD))
+        ser.write(chr(DDRD))
         ser.write(chr(pwmRegisterD))
         ser.write(chr(servoRegisterD))
     
@@ -321,35 +324,36 @@ def sendBoardUpdate():
         ser.write(chr(DDRC))
         ser.write(chr(pwmRegisterC))
         ser.write(chr(servoRegisterC))
-    }
+    
 
     if( PORTB != prevPortB):
 
-        ser.write(chr((PORTB))
-        ser.write(chr((DDRB))
-        ser.write(chr((pwmRegisterB))
-        ser.write(chr((servoRegisterB))      
-    }
-
+        ser.write(chr(PORTB))
+        ser.write(chr(DDRB))
+        ser.write(chr(pwmRegisterB))
+        ser.write(chr(servoRegisterB))      
+    
 # SEND PWM INFO
-
-    ser.write(chr(IS_PWM));
+    ser.write(chr(CHRNULL))
+    ser.write(chr(IS_PWM))
 
     if (pwmData != prevpwmData):
         for i in range(ROW):
             if (pwmData[f'{i}']!= 0): 
-                if (pwmData[f'{i}']!= prevpwmData[f'{i}']){ 
+                if (pwmData[f'{i}']!= prevpwmData[f'{i}']): 
                     ser.write(chr(pwmData[f'{i}']));
 
 # SEND SERVO INFO
-                    
+    ser.write(chr(CHRNULL))                
     sendChar(IS_SERVO);
 
-    if (servoData != prevservoData:
+    if (servoData != prevservoData):
         for i in range(8):
             if (servoData[f'{i}']!= 0): 
-                if (servoData[f'{i}']!= prevservoData[f'{i}']) 
+                if (servoData[f'{i}']!= prevservoData[f'{i}']):
                     ser.write(chr(servoData[f'{i}']))
+
+    ser.write(chr(CHRNULL))
     ser.write(chr(END))
 
 # ASK RECEIVED FROM ARDUIND
@@ -361,7 +365,7 @@ def sendBoardUpdate():
     if (receivedAction==RESEND):
                 ser,flush()
                 sendBoardUpdate()
-    while (receivedAction!=RECEIVED)
+    while (receivedAction!=RECEIVED):
         resivedAction=ser.read(1)
         while (receivedAction==WAIT):
             pass
@@ -409,7 +413,7 @@ PC_CONTROL_STATE =0
 
 ANALOG_PINS={"Pin":"Pin Number"}
 
-if controller!=None:
+# if controller!=None:
 # Initialization of pin modes can be done reading status from the board
 # so when connection start all  ports must be assigned as working default
 # when can be changed by taking control of board. Arduino program call
@@ -419,18 +423,18 @@ if controller!=None:
 # analog read pin don't have a stored variable so I will do a dictionary  
 
 
-    controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
-    controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
-    controller.set_pin_mode(pin=mosfet_1_pin, mode='PWM')
-    controller.set_pin_mode(pin=mosfet_2_pin, mode='PWM')
-    controller.set_pin_mode(pin=mosfet_3_pin, mode='PWM')
+#    controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+#    controller.set_pin_mode(pin=PC_CONTROL_PIN, mode='OUTPUT')
+#    controller.set_pin_mode(pin=mosfet_1_pin, mode='PWM')
+#    controller.set_pin_mode(pin=mosfet_2_pin, mode='PWM')
+#    controller.set_pin_mode(pin=mosfet_3_pin, mode='PWM')
 
     # Dictionary to validate ANALOG ports (USER CAN CHANGE IT SO MUST REMOVE, ADD OR REPLACE}
-    ANALOG_PINS['battery_voltage_pin']=A3
-    ANALOG_PINS['device_charger_voltage_1']=A0
-    ANALOG_PINS['device_charger_voltage_2']=A1
-    ANALOG_PINS['device_charger_voltage_3']=A2
-    ANALOG_PINS['photo_resistor']=A7
+ANALOG_PINS['battery_voltage_pin']=A3
+ANALOG_PINS['device_charger_voltage_1']=A0
+ANALOG_PINS['device_charger_voltage_2']=A1
+ANALOG_PINS['device_charger_voltage_3']=A2
+ANALOG_PINS['photo_resistor']=A7
     
 # Define main widget environment dimensions
 root = Tk()
@@ -593,19 +597,17 @@ def convertionReadToVolts(entryValue, pin):
                      
 
 # Screen message function for button to control board
-ttk.Label(mainFrame, text= "To control the board press the button").grid(column=1,row=1,columnspan=5, sticky=(W,N,S))
+ttk.Label(mainFrame, text= "To control the board press the button")
    
 # buttons to control pin mode
 
 controlBoardPBtn=ttk.Button(mainFrame, text="Control Board", command=onPressBoardUnlock).grid(column=1,row=2,columnspan=5, sticky=(W,N,S))
+#if controller!=None:
+# controlBoardPBtn.state(['!disabled'])
+# else:
+#    controlBoardPBtn.state(['disabled'])
+#    controlBoardPBtn.configure(text="Control Board N/A")
 
-if controller!=None:
-    controlBoardPBtn.state(['!disabled'])
-else:
-    controlBoardPBtn.state(['disabled'])
-    controlBoardPBtn.configure(text="Control Board N/A")
-
-controlBoardPBtn.grid(column =1, row =2, sticky=(W,N,S))
 
 # Labels for columns
 
@@ -654,33 +656,33 @@ try:
 except: 
     isPinMode= None
     
-if controller!=None:
-  if isPinMode!=INPUT and isPinMode!=None :
+if controller!=None:  MUST BE CHANGED FOR NEW SERIAL
+if isPinMode!=INPUT and isPinMode!=None :
     if isPinMode!=OUTPUT and isPinMode!=None :
         buttonMos1Stg = "PWM"
     else:
         if isPinMode!=None :
-            buttonMos1Stg = "OUTPUT"
+buttonMos1Stg = "OUTPUT"
         else:
-            buttonMos1Stg = "N/A"  
+#            buttonMos1Stg = "N/A"  
+#
+#else:
+#        if isPinMode!=None :
+#            buttonMos1Stg = "INPUT"
+#        else:
+#            buttonMos1Stg = "N/A"  
 
-  else:
-        if isPinMode!=None :
-            buttonMos1Stg = "INPUT"
-        else:
-            buttonMos1Stg = "N/A"  
-
-else:
-  buttonMos1Stg = "N/A"  
+#else:
+#  buttonMos1Stg = "N/A"  
 ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky=(W,E,N))
 buttonMos1= ttk.Button(mainFrame, textvariable=buttonMos1Stg)
 buttonMos1.grid(column =1, row =3, sticky=(W,E,S))
 
 pin=mosfet_2_pin
 
-try:
-    isPinMode=controller.board.digital[pin].mode
-except: 
+#try:
+#    isPinMode=controller.board.digital[pin].mode
+$except: 
     isPinMode= None
 
 if controller!=None:
@@ -691,7 +693,7 @@ if controller!=None:
         if isPinMode!=None :
             buttonMos1Stg = "OUTPUT"
         else:
-            buttonMos1Stg = "N/A"  
+buttonMos1Stg = "N/A"  
 
   else:
         if isPinMode!=None :

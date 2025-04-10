@@ -75,6 +75,9 @@ Servo myServo;
  * BAUD AND BAUD_PRESCALLER ARE 
 */
 
+#include <avr/io.h>
+#include <avr/interrupt.h>
+ 
 // SET CLOCK TO 16 MHZ
 
 #define F_CPU 16000000UL
@@ -102,7 +105,7 @@ void initSerial(void){
 unsigned char receiveChar(){
   while(!(UCSR0A & (1<<RXC0))){
     
-  if ( UCSR0A & (1<<FE0)|(1<<DOR0)|(1<<PE0) ){
+  if ( UCSR0A & (1<<4)|(1<<3)|(1<<2) ){   // 4= FRAME ERROR 3= OVERRUN ERROR 2= PARITY ERROR
 return -1;
 }
   return UDR0;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
@@ -187,6 +190,8 @@ const char RESEND= 19;
 const char WAIT= 22;
 
 const char END = 23;
+
+const char CHRNULL = 0;
 
 const char BOARD_INFO =6; // THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER LIBRARY
 
@@ -275,7 +280,8 @@ while(receiveAction==-1){
     }
 
 // SEND ANALOG READ DATA
-
+    
+    sendChar(CHRNULL);           //USING TWO BYTES AS IDENTIFIER 
     sendChar(IS_ANALOG_READ);
 
     if (arrayRead != prevArrayRead){
@@ -296,6 +302,8 @@ while(receiveAction==-1){
     } 
      
 //SEND PWM INFO
+
+    sendChar(CHRNULL);
     sendChar(IS_PWM);
 
     if (pwmData != prevpwmData){
@@ -321,7 +329,7 @@ while(receiveAction==-1){
       }
     }
   }
-  
+  sendChar(CHRNULL);  
   sendChar(END);
   
   // ASK DIRECTIONS TO COMPUTER RECEIVED?
@@ -350,7 +358,7 @@ while(receiveAction==-1){
   }
 }
 
-// CHECK THAT PINS ADMITS PWM USAGE
+// CHECK WHICH PINS ADMITS PWM USAGE
 int pinForPWM[]={3,5,6,9,10,11,14,15,16,17,18,19,20,21};
 
 // IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
@@ -486,9 +494,11 @@ int counterRegisterServo=0;
 
 while(true){
   receivedRawString[counter]=receiveChar();
-  if(receivedRawString[counter]==END){
-  counter=0;
-  break;  
+  if(countew <0){
+    if(receivedRawString[counter]==END & receivedRawString[counter-1]==CHRNULL){
+      counter=0;
+      break;  
+  }
   }
   ++counter;
 }
@@ -515,13 +525,13 @@ couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferReg
 boolean doneReadPWM = False
 
 for(int i=12;i<59;i++){
-    if(receivedRawString[i+1]!=IS_SERVO | !doneReadPWM){
+    if(!doneReadPWM & !(receivedRawString[i+2]==IS_SERVO & receivedRawString[i+1]==CHRNULL) ){
     receivedPWM[counterPWM] = receivedRawString[i];
     ++counterPWM;
     }
     else{
       doneReadPWM=True
-      if(receivedRawString[i+1]!=END){
+      if(!(receivedRawString[i+2]==END & receivedRawString[i+1]==CHRNULL) ){
         receivedServo[counterServo] = receivedRawString[i];
         ++counterServo; 
       }
