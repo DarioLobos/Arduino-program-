@@ -197,6 +197,11 @@ const char BOARD_INFO =6; // THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER
 
 const int PC_REGISTERS_UPDATE = 14; // THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
 
+const int COM_ATTEMPTS=20;  // THIS IS THE LOMIT OF LOOPS THAT PROGRAM MUST DO TO TRY TO STABLISK COMMUNICATION BEFORE RAISE AN ERROR
+
+boolean AVAILABLE = true;  // THIS IS THE FLAG TO DETERMINE UNAVAILABLE STATE;
+
+
 // ALL THESE STORE LAST SENT TO AVOID RESEND THE SAME
  
 uint8_t prevPortB;
@@ -219,6 +224,8 @@ unsigned char receivedAction=0;
 
 // THIS IS TO SEND THE DATA WHEN RECEIVE THE CHAR SEND_STATUS
 
+
+
 void boardInfo();
 void receibeData();
 
@@ -230,16 +237,25 @@ void listen_PC_Start(){
  *  a transmission to don't let program crack for an exception 
  */ 
 
-
 receivedAction= receiveChar();
 
-while(receiveAction==-1){
-  flush();
-  receivedAction= receiveChar();
-}
+for(int 1=0; i < COM_ATTEMPTS){
+  if (receiveAction==-1){
+    flush();
+    receivedAction= receiveChar();
+    AVAILABLE = false;
+  }
+  else{
+    AVAILABLE = true;
+    break;
+  }
+  }
+
 
 // THIS IS NOT USED IS FOR THREAD AND TIMING OF THREADS
 
+if (AVAILABLE){
+  
   while (receivedAction==WAIT){
    }
 
@@ -357,6 +373,7 @@ while(receiveAction==-1){
   prevservoData = servoData; 
   }
 }
+}
 
 // CHECK WHICH PINS ADMITS PWM USAGE
 int pinForPWM[]={3,5,6,9,10,11,14,15,16,17,18,19,20,21};
@@ -447,8 +464,15 @@ int newAnalogRead(int pin){
   return value;
 }
 
+int counterBoard=0
+
 void boardInfo(){
 while(true){
+if (counterBoard>COM_ATTEMPTS){
+  AVAILABLE=false;
+  counterBoard=0;
+  break;
+}
 sendChar(BOARD_INFO)
 sendString(BoardIdentify::type);
 sendChar('/n');
@@ -466,6 +490,7 @@ if(receivedAction==RECEIVED){
 else{
   flush();
 }
+++ counterBoard
 }
 }
 
@@ -473,6 +498,7 @@ else{
 void receiveData(){
   
 int counter=0;
+unsigned char tempReceived;
 unsigned char receivedRawString[59];
 unsigned char receivedPWM[ROW];
 unsigned char receivedServo[ROW];
@@ -491,17 +517,55 @@ uint8_t bufferRegisterServoC;
 uint8_t bufferRegisterServoD;
 int counterRegisterPWM=0;
 int counterRegisterServo=0;
+AVAILABLE=false;
+counterBoard=0;
 
 while(true){
-  receivedRawString[counter]=receiveChar();
-  if(countew <0){
+
+  if (counterBoard>0){
+    tempReceived=receiveChar();
+    if (tempreceived==PC_REGISTERS_UPDATE){
+      AVAILABLE=true;
+    }else{
+    flush();
+    AVAILABLE=false;
+    counter=0;
+    sendChar(RESEND);
+    ++counterBoard;
+    }
+  }
+    
+  
+  if (counterBoard>COM_ATTEMPTS){
+    
+    counterBoard=0;
+    break;
+  }
+
+ tempReceived=receiveChar();
+
+ if (tempReceived>-1){
+  AVAILABLE=true;
+ }
+  if(AVAILABLE){
+    receivedRawString[counter]=tempReceived;
     if(receivedRawString[counter]==END & receivedRawString[counter-1]==CHRNULL){
       counter=0;
-      break;  
+      counterBoard=0;
+      break;
+        
   }
+  }else:{
+    flush();
+    AVAILABLE=false;
+    counter=0;
+    sendChar(RESEND);
+    ++counterBoard;
   }
-  ++counter;
+  
 }
+
+if (AVAILABLE){
 
 bufferPortD= uint8_t(receivedRawString[0]);
 bufferDDRD= uint8_t(receivedRawString[1]);
@@ -615,6 +679,7 @@ for(int i=12;i<59;i++){
           }
     }
   }
+}
 }
 
 
