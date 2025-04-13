@@ -57,13 +57,25 @@ Servo myServo;
  * https://drive.google.com/file/d/1ANG8-GtRzkY1PIZ6kYH60ZUBgf1YUTnj/view?usp=drivesdk
  *
  *
- * ARDUINO IS CHARGING FROM THE BATTERY  USING AN LM 7805 OR 340 WHICH IS THE SIMPLEST OPTION.
+ * ARDUINO POWER SUPPLY IS FROM THE BATTERY  USING AN LM 7805 OR 340 WHICH IS THE SIMPLEST OPTION.
  *
  *  OPERATIONAL AMPLIFIERS NEEDS LM315 TO SET IT TO 10 VOLTS OR 12 VOLTS.
  " 
  * THE MICROCONTROLLER SEND ALL THE DATA USING FIRMATA AND WITH PHYTON IS
  " HANDLED TO MAKE HISTORIAL OF INFO AND GRAPHICS WiTH TkINTER AND PYFIRMATA.
  */
+
+// ASSIGNMENT OF ONE PIN LOCKER FOR REMOTE PC CONTROL 
+
+int PC_CONTROL_STATE= LOW;
+
+const int PC_CONTROL_PIN= 6;
+
+const int PC_CONTROL_MODE= OUTPUT;
+
+ 
+ 
+ 
  //-----------------SERIAL TRANSFER PART -----------------
 
 /* THIS CODE IS FROM THE CHIP ATMEGA DATASHEET
@@ -101,9 +113,18 @@ void initSerial(void){
   } 
 
 // IS CONVENIENT USE THEM WITH TRY TO WHEN ARE USED AND IF FAIL HAPPENS WILL TRY AGAIN IN NEXT LOOP WITHOUT EXCEPTION
+// I USE INT TO CAN THROW A -1 IN CASE OF ERROR WHEN IS RECEIVED MUST BE CHANGED TO UNSIGNED CHAR OR UINT8_T 
 
-unsigned char receiveChar(){
+int receiveChar(){
+  int attemps_with_delay=5;
+  int counter=0;
   while(!(UCSR0A & (1<<RXC0))){
+    delay(5);
+    if (attemps_with_delay<counter){
+      return -1; 
+    }
+}
+  while((UCSR0A & (1<<RXC0))){
     
   if ( UCSR0A & (1<<4)|(1<<3)|(1<<2) ){   // 4= FRAME ERROR 3= OVERRUN ERROR 2= PARITY ERROR
 return -1;
@@ -113,17 +134,31 @@ return -1;
 }
 
 
-void sendChar(unsigned char data){
-  while(!(UCSR0A & (1<<UDRE0))){
-  UDR0= data;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
-}
-}
 
-
-void sendString(char *StringPtr){
-  while (*StringPtr != 0x00){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
-    sendChar(*StringPtr);
+int sendChar(unsigned char data){
+  int attemps_with_delay=5;
+  int counter=0;
+  while(!(UCSR0A & (1<<RXC0))){
+    delay(5);
+    if (attemps_with_delay<counter){
+      return -1; 
+    }
   }
+  while((UCSR0A & (1<<UDRE0))){
+  UDR0= data;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
+  return 1;
+}
+}
+
+
+int sendString(char *StringPtr){
+  while (*StringPtr != 0x00){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
+    if (sendChar(*StringPtr)==-1){
+      return -1;
+    }    
+  }
+  return 1;
+
 }
 
 void flush(){
@@ -197,7 +232,8 @@ const char BOARD_INFO =6; // THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER
 
 const int PC_REGISTERS_UPDATE = 14; // THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
 
-const int COM_ATTEMPTS=20;  // THIS IS THE LOMIT OF LOOPS THAT PROGRAM MUST DO TO TRY TO STABLISK COMMUNICATION BEFORE RAISE AN ERROR
+const int COM_ATTEMPTS=20;  // THIS IS THE LIMIT OF LOOPS THAT PROGRAM MUST DO TO TRY TO STABLISH COMMUNICATION BEFORE RAISE AN ERROR 
+                            // HAVE 5 MORE WITH DELAY IN SEND AND RECEIVE CHAR
 
 boolean AVAILABLE = true;  // THIS IS THE FLAG TO DETERMINE UNAVAILABLE STATE;
 
@@ -215,7 +251,7 @@ unsigned char prevArrayRead [7][1];
 unsigned char prevpwmData [ROW];
 unsigned char prevservoData [ROW];
 
-for (int i=0; i<ROW ;i++){
+ for (int i=0; i<ROW ;i++){
   prevpwmData[i]=0;
   prevservoData[i]=0;
   }
@@ -226,11 +262,11 @@ unsigned char receivedAction=0;
 
 
 
-void boardInfo();
-void receibeData();
+boolean boardInfo();
+boolean receiveData();
 
  
-void listen_PC_Start(){
+boolean listen_PC_Start(){
 
 /* exception handling is dissabled in the compiler pending implement 
  *  try catch for the case of wire get disconnected in the middle of
@@ -239,8 +275,8 @@ void listen_PC_Start(){
 
 receivedAction= receiveChar();
 
-for(int 1=0; i < COM_ATTEMPTS){
-  if (receiveAction==-1){
+for(int i=0; i < COM_ATTEMPTS; i++){
+  if (receivedAction==-1){
     flush();
     receivedAction= receiveChar();
     AVAILABLE = false;
@@ -260,11 +296,17 @@ if (AVAILABLE){
    }
 
    if (receivedAction==BOARD_INFO) {
-    boardInfo();
+    if(!(boardInfo())){
+      return false;
+    }
+    return true;
    }
 
    if (receivedAction==PC_REGISTERS_UPDATE) {
-    receiveData();
+    if(!(receiveData())){
+      return false;
+    }
+    return true;
    }
 
   if (receivedAction==SEND_STATUS) {
@@ -273,32 +315,60 @@ if (AVAILABLE){
 
     if( PORTD != prevPortD){
 
-      sendChar(unsigned char (PORTD));
-      sendChar(unsigned char (DDRD));
-      sendChar(unsigned char (pwmRegisterD));
-      sendChar(unsigned char(servoRegisterD));
+      if(sendChar(uint8_t (PORTD))==-1){
+        return false;
+      }
+      if(sendChar(uint8_t (DDRD))==-1){
+        return false;
+      }
+      if(sendChar(uint8_t (pwmRegisterD))==-1){
+        return false;
+      }
+      if(sendChar(uint8_t(servoRegisterD))==-1){
+        return false;
+      }
           }
     
     if( PORTC != prevPortC){
     
-      sendChar(unsigned char (PORTC));
-      sendChar(unsigned char (DDRC));
-      sendChar(unsigned char (pwmRegisterC));
-      sendChar(unsigned char (servoRegisterC));
+      if{sendChar( uint8_t(PORTC))==-1)){
+        return false;
+      }
+      if(sendChar( uint8_t(DDRC))==-1){
+        refurn false;
+      }
+      if(sendChar(uint8_t (pwmRegisterC))==-1){
+        refurn false;
+      }
+      if(sendChar(uint8_t (servoRegisterC))==-1{
+        refurn false;
+      }
     }
 
     if( PORTB != prevPortB){
 
-      sendChar(unsigned char (PORTB));
-      sendChar(unsigned char (DDRB));
-      sendChar(unsigned char (pwmRegisterB));
-      sendChar(unsigned char(servoRegisterB));      
+      if(sendChar(uint8_t (PORTB))==-1){
+        return false;
+      }
+      if(sendChar(uint8_t (DDRB))==-1){
+        refurn false;
+      }
+      if(sendChar(uint8_t (pwmRegisterB))==-1){
+        refurn false;
+      }
+      if(sendChar(uint8_t(servoRegisterB)))==-1){
+        refurn false;      
+      }
     }
 
 // SEND ANALOG READ DATA
     
-    sendChar(CHRNULL);           //USING TWO BYTES AS IDENTIFIER 
-    sendChar(IS_ANALOG_READ);
+    if(sendChar(CHRNULL)==-1)){
+      return false;           //USING TWO BYTES AS IDENTIFIER 
+    }
+    if (sendChar(IS_ANALOG_READ)==-1){
+      return false;
+    }
 
     if (arrayRead != prevArrayRead){
 
@@ -310,8 +380,12 @@ if (AVAILABLE){
            if(arrayRead[i][0]!= prevArrayRead[i][0] | arrayRead[i][1]!= prevArrayRead[i][1]) {
             byteLow= arrayRead[i][0];
             byteHigh=arrayRead[i][1];
-            sendChar(byteHigh);
-            sendChar(byteLow);
+            if (sendChar(byteHigh)==-1){
+              return false;
+            }
+            if (sendChar(byteLow)==-1{
+              return false;
+            }
             }
         }
      }
@@ -327,7 +401,9 @@ if (AVAILABLE){
       for (int i=0; i<ROW ;i++){
         if (pwmData[i]!= 0){ 
           if (pwmData[i]!= prevpwmData[i]){ 
-            sendChar(pwmData[i]);
+            if(sendChar(pwmData[i])==-1){
+              return false;
+            }
           }
         }
       }
@@ -340,19 +416,28 @@ if (AVAILABLE){
     for (int i=0; i<ROW ;i++){
       if (servoData[i]!= 0){ 
         if (servoData[i]!= prevservoData[i]){ 
-          sendChar(servoData[i]);
+          if (sendChar(servoData[i])==-1){
+            return false;
+          }
         }
       }
     }
   }
-  sendChar(CHRNULL);  
-  sendChar(END);
+  if (sendChar(CHRNULL)==-1){
+    return false;  
+  }
+if (sendChar(END)==-1)){
+  return false;
+}
   
   // ASK DIRECTIONS TO COMPUTER RECEIVED?
   // CONPUTER CAN SEND WAIT AND RECEIVED
 
       do {
         receivedAction= receiveChar();
+        if (receivedAction==-1){
+          return false;
+        }
         while (receivedAction==WAIT){
         }
         if (receivedAction==RESEND) {
@@ -371,7 +456,12 @@ if (AVAILABLE){
   prevArrayRead = arrayRead;
   prevpwmData = pwmData;
   prevservoData = servoData; 
+  return true;
   }
+}
+}
+else{
+  return false;
 }
 }
 
@@ -423,6 +513,7 @@ void newAnalogWrite(int pin, int value){
   }  
 }
 }
+}
 
 void newServo(int pin, int value){  
   for (int i=0; i<sizeof(pinForPWM); i++){
@@ -430,7 +521,7 @@ void newServo(int pin, int value){
 
     unsigned char lowbyte = unsigned char(value);
 
-    myservo.attach(pin);
+    myServo.attach(pin);
     myServo.write(value);
 
     servoData[pin]= lowbyte; 
@@ -457,45 +548,69 @@ int newAnalogRead(int pin){
     if (pinForAnalog[i]==pin){
         uint8_t Highbyte =  value >>8;
         uint8_t Lowbyte = value;
-        arrayRead[pin][0] = unsigned char(Highbyte);
-        arrayRead[pin][1] = unsigned char(Lowbyte);
+        arrayRead[pin][0] = uint8_t(Highbyte);
+        arrayRead[pin][1] = uint8_t(Lowbyte);
     }
   }
   return value;
 }
 
-int counterBoard=0
+int counterBoard=0;
 
-void boardInfo(){
+boolean boardInfo(){
 while(true){
 if (counterBoard>COM_ATTEMPTS){
   AVAILABLE=false;
   counterBoard=0;
   break;
 }
-sendChar(BOARD_INFO)
-sendString(BoardIdentify::type);
-sendChar('/n');
-sendString(BoardIdentify::make);
-sendChar('/n');
-sendString(BoardIdentify::model);
-sendChar('/n');
-sendString(BoardIdentify::mcu);
-sendChar('/n');
-sendChar(END);
+if(sendChar(BOARD_INFO)==-1){
+  refurn false
+}
+if(sendString(BoardIdentify::type)==-1){
+return false;
+}
+if(sendChar('/n')==-1){
+  refurn false;
+
+if(sendString(BoardIdentify::make)==-1){
+return false;
+}
+if(sendChar('/n')==-1){
+  refurn false;
+}
+if(sendString(BoardIdentify::model)==-1){
+return false;
+}
+if(sendChar('/n')==-1){
+  return false;
+}
+if(sendString(BoardIdentify::mcu)==-1){
+return false;
+}
+if(sendChar('/n')==-1){
+  return false;
+}
+if(sendChar(END)==-1){
+  return false;
+}
 receivedAction= receiveChar();
+if(receivedAction==-1){
+  return false;
+}
 if(receivedAction==RECEIVED){
+  return true;
  break; 
 }
 else{
   flush();
 }
-++ counterBoard
+++ counterBoard;
 }
 }
-
+}
       
-void receiveData(){
+boolean receiveData(){
   
 int counter=0;
 unsigned char tempReceived;
@@ -512,6 +627,7 @@ uint8_t bufferPortD;
 uint8_t bufferDDRD;
 uint8_t bufferRegisterPWMC;
 uint8_t bufferRegisterPWMD;
+uint8_t bufferRegisterPWMB;
 uint8_t bufferRegisterServoB;
 uint8_t bufferRegisterServoC;
 uint8_t bufferRegisterServoD;
@@ -524,13 +640,18 @@ while(true){
 
   if (counterBoard>0){
     tempReceived=receiveChar();
-    if (tempreceived==PC_REGISTERS_UPDATE){
+    if (tempReceived ==-1){
+      return false;
+    }
+    if (tempReceived==PC_REGISTERS_UPDATE){
       AVAILABLE=true;
     }else{
     flush();
     AVAILABLE=false;
     counter=0;
-    sendChar(RESEND);
+    if (sendChar(RESEND)==-1){
+      return false;
+    }
     ++counterBoard;
     }
   }
@@ -544,8 +665,9 @@ while(true){
 
  tempReceived=receiveChar();
 
- if (tempReceived>-1){
-  AVAILABLE=true;
+ if (tempReceived==-1){
+  AVAILABLE=false;
+  return false;
  }
   if(AVAILABLE){
     receivedRawString[counter]=tempReceived;
@@ -555,7 +677,8 @@ while(true){
       break;
         
   }
-  }else:{
+  }
+  else{
     flush();
     AVAILABLE=false;
     counter=0;
@@ -582,11 +705,11 @@ bufferDDRB= uint8_t(receivedRawString[9]);
 bufferRegisterPWMB= uint8_t(receivedRawString[10]);
 bufferRegisterServoB= uint8_t(receivedRawString[11]);;
 
-couterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegisterPWMC) + counterBitON(bufferRegisterPWMB);
+counterRegisterPWM = counterBitON(bufferRegisterPWMD)+ counterBitON(bufferRegisterPWMC) + counterBitON(bufferRegisterPWMB);
 
-couterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
+counterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRegisterServoC) + counterBitON(bufferRegisterServoB);
 
-boolean doneReadPWM = False
+boolean doneReadPWM = false;
 
 for(int i=12;i<59;i++){
     if(!doneReadPWM & !(receivedRawString[i+2]==IS_SERVO & receivedRawString[i+1]==CHRNULL) ){
@@ -594,7 +717,8 @@ for(int i=12;i<59;i++){
     ++counterPWM;
     }
     else{
-      doneReadPWM=True
+      doneReadPWM= true;
+    }
       if(!(receivedRawString[i+2]==END & receivedRawString[i+1]==CHRNULL) ){
         receivedServo[counterServo] = receivedRawString[i];
         ++counterServo; 
@@ -603,18 +727,20 @@ for(int i=12;i<59;i++){
         break;
       }
     }
-    }
+    
   
 
   if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo){
-  flush()  
+  flush();  
   sendChar(RESEND);
   receiveData();
   }
   
   sendChar(RECEIVED);
   flush();
-
+  
+  if (bitON(bufferPortB,PC_CONTROL_PIN)){
+    
   PORTD = bufferPortD;
   DDRD = bufferDDRD;
   PORTC = bufferPortC;
@@ -681,28 +807,7 @@ for(int i=12;i<59;i++){
   }
 }
 }
-
-
-   
-// ASSIGNMENT OF ONE PICK LOCKED FOR REMOTE CONTROL 
-
-int PC_CONTROL_STATE= LOW;
-
-const int PC_CONTROL_PIN= 6;
-
-const int PC_CONTROL_MODE= OUTPUT;
-
-
-
-byte pinPc = byte (PC_CONTROL_PIN);
-
-byte currentPinValue;
-byte previousPinValue;
-
-
-byte analogPin = 0;
-
-
+}
  
 /* THIS IS FOR THE PIN EXTENDER USING THE CHIP MCP23X17 
  *  EXPANDER PIN CONNECTION:
@@ -1261,7 +1366,8 @@ while( !Serial ){/*wait*/}   //for USB serial switching boards
   Wire.setClock(400000);
    if (keyPad.begin() == false)
   {
-    Serial.println("\nERROR: cannot communicate to keyPad.\nPlease reboot.\n");
+    lcd.print("cannot communicate to keyPad.Please reboot");
+    lcd.display();
     while (1);
   }             
   keyPad.loadKeyMap(keymap);
@@ -1294,9 +1400,6 @@ void loop(){
   
   while (PC_CONTROL_STATE == LOW) {
     
-if (PC_CONTROL_STATE == HIGH){
-break;
-}
 //-----------------------------------
 //Arduino program control
 //-----------------------------------
@@ -1355,11 +1458,17 @@ newAnalogWrite(MOSFET_3_PIN,mosfet3Signal); // SIGNAL FOR WIND GENERATOR
 
   byte i;
 
-
-
- PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
 }
+
+if(listen_PC_Start()==true){
+ PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
+
+}
+
 lcdMessage (LCD_FULL_BATTERY,FULL_LENGHT, batteryState );
+
+
+
 }
 
   
@@ -1369,9 +1478,11 @@ while (PC_CONTROL_STATE== HIGH) {
 //
 // pc program that will be only call back process and read check.
 
-PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
+if(listen_PC_Start()==true){
+ PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
 
-
+}
+}
 // reset is necessary because the computer
 // can change pins or ports and modes of operation  so is necessary hardware with a jumper and reset pin.
 // create a standard reset function
@@ -1381,5 +1492,4 @@ mcp.digitalWrite(MCP_PIN15, HIGH);
 
 
 }  
-}
 // END OF FILE
