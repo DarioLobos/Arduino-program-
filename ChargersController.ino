@@ -100,16 +100,23 @@ const int PC_CONTROL_MODE= OUTPUT;
 #define BAUDRATE 9600
 #define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) -1)   
 
+#sefine ASYNCHRONOUS (0<<UMSEL00)
+#define PARITY_MODE (2<<UPM00) // EVEN PARITY MODE,  DISSABLED=0 ODD=3
+#define STOP_BIT (0<<USBS0) // ONE STOP BIT, TWO STOP BITS =1
+#define DATA_BIT (3<<UCSZ00) // EIGHT BITS, FIVE BITS=0, SIX BITS=1, SEVEN BITS =2
+
 void initSerial(void){
 
-  UBRR0H = (uint8_t)(BAUD_PRESCALLER>>8);
-  UBRR0L = (uint8_t)(BAUD_PRESCALLER);
+  UBRR0H = (uint8_t)(BAUD_PRESCALLER>>8); // HIGH PRESCALLER BITS
+  UBRR0L = (uint8_t)(BAUD_PRESCALLER);  // LOW PRESCALER BITS
 /* IN OUR CASE RXEND IS BIT 0 AND 1 CAN BE USED 01 AND 10
  * BOTH POSITIONS ARE SER TO 1 IN THE OR STATEMENT 
  */
+ // THIS ENABLES RECEIVER AND TRANSMITTER
   UCSR0B = (1<<RXEN0) | (1<<RXEN0);
-
-  UCSR0C = (1<<UCSZ00) | (1<<UCSZ00);
+  
+// ALL THE FLAGS DEFINED TO SETTING REGISTER UCSR0C
+  UCSR0C = ASYNCHRONOUS | PARITY_MODE | STOP_BIT | DATA_BIT  ;
   } 
 
 // IS CONVENIENT USE THEM WITH TRY TO WHEN ARE USED AND IF FAIL HAPPENS WILL TRY AGAIN IN NEXT LOOP WITHOUT EXCEPTION
@@ -164,6 +171,16 @@ int sendString(char *StringPtr){
 void flush(){
 unsigned char dummy;
 while ( UCSR0A & (1<<RXC0) ) dummy = UDR0;  
+}
+
+void closeSerial(){
+
+while ( UCSR0A & (1<<RXC0) ) dummy = UDR0;  
+}
+
+// THIS DISSABLED RECEIVER AND TRANSMITTER
+  UCSR0B &= ~(1<<RXEN0) | ~(1<<RXEN0);
+   
 }
 
 const char SEND_STATUS=17; // THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
@@ -272,7 +289,7 @@ boolean listen_PC_Start(){
  *  try catch for the case of wire get disconnected in the middle of
  *  a transmission to don't let program crack for an exception 
  */ 
-
+initSerial();
 receivedAction= receiveChar();
 
 for(int i=0; i < COM_ATTEMPTS; i++){
@@ -297,6 +314,7 @@ if (AVAILABLE){
 
    if (receivedAction==BOARD_INFO) {
     if(!(boardInfo())){
+      closeSerial();
       return false;
     }
     return true;
@@ -304,71 +322,130 @@ if (AVAILABLE){
 
    if (receivedAction==PC_REGISTERS_UPDATE) {
     if(!(receiveData())){
+      closeSerial();
       return false;
     }
     return true;
    }
 
-  if (receivedAction==SEND_STATUS) {
+  if (receivedAction==SEND_STATUS) 
+    if(!(sendStatus())){
+      closeSerial();
+      return false;
+    }
+    return true;
+   } 
+}
+
+counterSend=0
+
+boolean sendStatus() {
+
+  AVAILABLE= false;
+
+  while(true){
+    
+  if (counterBoard>COM_ATTEMPTS){
+      AVAILABLE=false;
+      counterSend=0;
+      closeSerial();
+      return false;
+      break;
+    }
+
+  if(sendChar(SEND_STATUS)==-1){
+        ++counterSend;
+        flush();
+        sendStatus();
+        }
 
     // SEND PORTS STATUS
 
     if( PORTD != prevPortD){
 
       if(sendChar(uint8_t (PORTD))==-1){
-        return false;
-      }
+        ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar(uint8_t (DDRD))==-1){
-        return false;
-      }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar(uint8_t (pwmRegisterD))==-1){
-        return false;
-      }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar(uint8_t(servoRegisterD))==-1){
-        return false;
-      }
-          }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
+    }
     
     if( PORTC != prevPortC){
     
-      if{sendChar( uint8_t(PORTC))==-1)){
-        return false;
-      }
+      if(sendChar( uint8_t(PORTC))==-1){
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar( uint8_t(DDRC))==-1){
-        refurn false;
-      }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar(uint8_t (pwmRegisterC))==-1){
-        refurn false;
-      }
-      if(sendChar(uint8_t (servoRegisterC))==-1{
-        refurn false;
-      }
-    }
-
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
+      if(sendChar(uint8_t (servoRegisterC))==-1){
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
+        }
+        
     if( PORTB != prevPortB){
 
       if(sendChar(uint8_t (PORTB))==-1){
-        return false;
-      }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar(uint8_t (DDRB))==-1){
-        refurn false;
-      }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar(uint8_t (pwmRegisterB))==-1){
-        refurn false;
-      }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
       if(sendChar(uint8_t(servoRegisterB)))==-1){
-        refurn false;      
-      }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
     }
 
 // SEND ANALOG READ DATA
     
     if(sendChar(CHRNULL)==-1)){
-      return false;           //USING TWO BYTES AS IDENTIFIER 
-    }
+        ++counterSend;
+        flush();
+        sendStatus();
+        }           //USING TWO BYTES AS IDENTIFIER 
+        
     if (sendChar(IS_ANALOG_READ)==-1){
-      return false;
-    }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
 
     if (arrayRead != prevArrayRead){
 
@@ -381,11 +458,15 @@ if (AVAILABLE){
             byteLow= arrayRead[i][0];
             byteHigh=arrayRead[i][1];
             if (sendChar(byteHigh)==-1){
-              return false;
-            }
+               ++counterSend;
+               flush();
+               sendStatus();
+               }
             if (sendChar(byteLow)==-1{
-              return false;
-            }
+                 ++counterSend;
+                 flush();
+                 sendStatus();
+                  }
             }
         }
      }
@@ -393,8 +474,16 @@ if (AVAILABLE){
      
 //SEND PWM INFO
 
-    sendChar(CHRNULL);
-    sendChar(IS_PWM);
+    if(sendChar(CHRNULL)==-1){
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
+    if(sendChar(IS_PWM)==-1){
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
 
     if (pwmData != prevpwmData){
 
@@ -402,8 +491,10 @@ if (AVAILABLE){
         if (pwmData[i]!= 0){ 
           if (pwmData[i]!= prevpwmData[i]){ 
             if(sendChar(pwmData[i])==-1){
-              return false;
-            }
+               ++counterSend;
+               flush();
+               sendStatus();
+        }
           }
         }
       }
@@ -417,18 +508,24 @@ if (AVAILABLE){
       if (servoData[i]!= 0){ 
         if (servoData[i]!= prevservoData[i]){ 
           if (sendChar(servoData[i])==-1){
-            return false;
-          }
+               ++counterSend;
+              flush();
+              sendStatus();
+        }
         }
       }
     }
   }
   if (sendChar(CHRNULL)==-1){
-    return false;  
-  }
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
 if (sendChar(END)==-1)){
-  return false;
-}
+         ++counterSend;
+        flush();
+        sendStatus();
+        }
   
   // ASK DIRECTIONS TO COMPUTER RECEIVED?
   // CONPUTER CAN SEND WAIT AND RECEIVED
@@ -436,13 +533,16 @@ if (sendChar(END)==-1)){
       do {
         receivedAction= receiveChar();
         if (receivedAction==-1){
-          return false;
+         ++counterSend;
+        flush();
+        sendStatus();
         }
         while (receivedAction==WAIT){
         }
         if (receivedAction==RESEND) {
-          flush();
-          listen_PC_Start();
+         ++counterSend;
+        flush();
+        sendStatus();
         }
       }
        while (receivedAction!=RECEIVED);
@@ -456,13 +556,10 @@ if (sendChar(END)==-1)){
   prevArrayRead = arrayRead;
   prevpwmData = pwmData;
   prevservoData = servoData; 
+  closeSerial();
+  AVAILABLE=true
   return true;
   }
-}
-}
-else{
-  return false;
-}
 }
 
 // CHECK WHICH PINS ADMITS PWM USAGE
@@ -558,58 +655,89 @@ int newAnalogRead(int pin){
 int counterBoard=0;
 
 boolean boardInfo(){
+
+AVAILABLE= false;
+
 while(true){
+  
 if (counterBoard>COM_ATTEMPTS){
   AVAILABLE=false;
   counterBoard=0;
+  closeSerial();
+  return false;
   break;
 }
 if(sendChar(BOARD_INFO)==-1){
-  refurn false
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(sendString(BoardIdentify::type)==-1){
-return false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(sendChar('/n')==-1){
-  refurn false;
-
+  ++counterBoard;
+  flush();
+  boardInfo();
+}
 if(sendString(BoardIdentify::make)==-1){
-return false;
-}
+  ++counterBoard;
+  flush();
+  boardInfo();
+ }
 if(sendChar('/n')==-1){
-  refurn false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(sendString(BoardIdentify::model)==-1){
-return false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(sendChar('/n')==-1){
-  return false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(sendString(BoardIdentify::mcu)==-1){
-return false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(sendChar('/n')==-1){
-  return false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(sendChar(END)==-1){
-  return false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 receivedAction= receiveChar();
 if(receivedAction==-1){
-  return false;
+  ++counterBoard;
+  flush();
+  boardInfo();
 }
 if(receivedAction==RECEIVED){
+  closeSerial();
+  AVAILABLE=true;
   return true;
  break; 
 }
 else{
-  flush();
+  ++counterBoard;
+  flush()
+  boardInfo();
 }
-++ counterBoard;
 }
 }
-}
-      
+
+counterReceive=0;      
 boolean receiveData(){
   
 int counter=0;
@@ -634,41 +762,42 @@ uint8_t bufferRegisterServoD;
 int counterRegisterPWM=0;
 int counterRegisterServo=0;
 AVAILABLE=false;
-counterBoard=0;
 
 while(true){
 
-  if (counterBoard>0){
-    tempReceived=receiveChar();
-    if (tempReceived ==-1){
-      return false;
-    }
-    if (tempReceived==PC_REGISTERS_UPDATE){
-      AVAILABLE=true;
-    }else{
-    flush();
-    AVAILABLE=false;
-    counter=0;
-    if (sendChar(RESEND)==-1){
-      return false;
-    }
-    ++counterBoard;
-    }
-  }
-    
-  
-  if (counterBoard>COM_ATTEMPTS){
-    
-    counterBoard=0;
+AVAILABLE=false;
+
+  if (counterReceived>COM_ATTEMPTS){
+    closeSerial();
+    counterReceived=0;
+    return false;    
     break;
   }
-
- tempReceived=receiveChar();
-
- if (tempReceived==-1){
-  AVAILABLE=false;
-  return false;
- }
+  if (counterReceived>0){
+      if (sendChar(RESEND)==-1){
+         ++counterReceive;
+        flush();
+      }
+  }
+    
+  tempReceived=receiveChar();
+    if (tempReceived ==-1){
+         ++counterReceive;
+        flush();
+        receiveData();
+        }
+    
+  if (tempReceived==PC_REGISTERS_UPDATE){
+      AVAILABLE=true;
+    }
+    else{
+         ++counterReceive;      
+        flush();
+        receiveData();
+    }
+  
+ 
+ 
   if(AVAILABLE){
     receivedRawString[counter]=tempReceived;
     if(receivedRawString[counter]==END & receivedRawString[counter-1]==CHRNULL){
@@ -731,13 +860,14 @@ for(int i=12;i<59;i++){
   
 
   if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo){
-  flush();  
-  sendChar(RESEND);
+  flush();
+  AVAILABLE=false;  
   receiveData();
   }
   
   sendChar(RECEIVED);
   flush();
+  serialClose();
   
   if (bitON(bufferPortB,PC_CONTROL_PIN)){
     
@@ -807,6 +937,7 @@ for(int i=12;i<59;i++){
   }
 }
 }
+return true;
 }
  
 /* THIS IS FOR THE PIN EXTENDER USING THE CHIP MCP23X17 
