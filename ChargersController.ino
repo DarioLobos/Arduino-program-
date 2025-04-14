@@ -813,6 +813,7 @@ AVAILABLE=false;
     counter=0;
     sendChar(RESEND);
     ++counterBoard;
+   receiveData();
   }
   
 }
