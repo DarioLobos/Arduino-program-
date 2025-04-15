@@ -175,11 +175,12 @@ while ( UCSR0A & (1<<RXC0) ) dummy = UDR0;
 
 void closeSerial(){
 
+unsigned char dummy;
 while ( UCSR0A & (1<<RXC0) ) dummy = UDR0;  
 }
 
 // THIS DISSABLED RECEIVER AND TRANSMITTER
-  UCSR0B &= ~(1<<RXEN0) | ~(1<<RXEN0);
+  UCSR0B &= ~((1<<RXEN0) | (1<<RXEN0));
    
 }
 
@@ -342,7 +343,7 @@ counterSend=0
 boolean sendStatus() {
 
   AVAILABLE= false;
-
+  
   while(true){
     
   if (counterBoard>COM_ATTEMPTS){
@@ -353,10 +354,20 @@ boolean sendStatus() {
       break;
     }
 
+if (counterBoard>0){
+  receivedAction= receiveChar();
+  if((receivedAction==-1)|(receivedAction!=SEND_STATUS)){
+  ++counterSend;
+  flush();
+  sendStatus();
+}
+}
+
+
   if(sendChar(SEND_STATUS)==-1){
         ++counterSend;
         flush();
-        sendStatus();
+       sendStatus();
         }
 
     // SEND PORTS STATUS
@@ -557,7 +568,7 @@ if (sendChar(END)==-1)){
   prevpwmData = pwmData;
   prevservoData = servoData; 
   closeSerial();
-  AVAILABLE=true
+  AVAILABLE=true;
   return true;
   }
 }
@@ -659,7 +670,7 @@ boolean boardInfo(){
 AVAILABLE= false;
 
 while(true){
-  
+
 if (counterBoard>COM_ATTEMPTS){
   AVAILABLE=false;
   counterBoard=0;
@@ -667,11 +678,22 @@ if (counterBoard>COM_ATTEMPTS){
   return false;
   break;
 }
+
+if (counterBoard>0){
+receivedAction= receiveChar();
+if((receivedAction==-1)|(receivedAction!=BOARD_INFO)){
+  ++counterBoard;
+  flush();
+  boardInfo();
+}
+}
+  
 if(sendChar(BOARD_INFO)==-1){
   ++counterBoard;
   flush();
   boardInfo();
 }
+
 if(sendString(BoardIdentify::type)==-1){
   ++counterBoard;
   flush();
@@ -774,7 +796,7 @@ AVAILABLE=false;
     break;
   }
   if (counterReceived>0){
-      if (sendChar(RESEND)==-1){
+      if (sendChar(PC_REGISTERS_UPDATE)==-1){
          ++counterReceive;
         flush();
       }
@@ -789,35 +811,36 @@ AVAILABLE=false;
     
   if (tempReceived==PC_REGISTERS_UPDATE){
       AVAILABLE=true;
+      break;
     }
     else{
          ++counterReceive;      
         flush();
         receiveData();
+        break;
     }
-  
- 
- 
-  if(AVAILABLE){
+
+}
+   
+while(AVAILABLE){
+
+    tempReceived=receiveChar();
+    if ((tempReceived ==-1)|(tempReceived==PC_REGISTERS_UPDATE)){
+         ++counterReceive;
+        flush();
+        receiveData();
+        break;
+        }
+            
     receivedRawString[counter]=tempReceived;
     if(receivedRawString[counter]==END & receivedRawString[counter-1]==CHRNULL){
       counter=0;
-      counterBoard=0;
+      counterReceive=0;
       break;
         
   }
   }
-  else{
-    flush();
-    AVAILABLE=false;
-    counter=0;
-    sendChar(RESEND);
-    ++counterBoard;
-   receiveData();
-  }
   
-}
-
 if (AVAILABLE){
 
 bufferPortD= uint8_t(receivedRawString[0]);
@@ -937,8 +960,8 @@ for(int i=12;i<59;i++){
     }
   }
 }
-}
 return true;
+}
 }
  
 /* THIS IS FOR THE PIN EXTENDER USING THE CHIP MCP23X17 
