@@ -104,11 +104,11 @@ for i in range (8):
 
 attempt_counter=0
 def receiveBoardInfo():
-    
+    global attempt_counter    
     if (attempt_counter>COM_ATTEMPTS):
         AVAILABLE=False
         ser.close()
-        atempt_counter=0
+        attempt_counter=0
         return None
     
     try:
@@ -119,14 +119,14 @@ def receiveBoardInfo():
             sleep(5)
             ser.flush()
             AVAILABLE=False
-            ++atempt_counter
+            ++attempt_counter
             ser.close()
             receiveBoardInfo()
             
     except:
         sleep(5)
         AVAILABLE=False
-        ++atempt_counter
+        ++attempt_counter
         ser.flush()
         ser.close()
         receiveBoardInfo()
@@ -146,7 +146,7 @@ def receiveBoardInfo():
                 if(answer_sending!=chr(END)):
                     ser.flush()
                     ser.close()
-                    ++atempt_counter
+                    ++attempt_counter
                     sendBoardInfo()
                 else:
                     sleep(5)
@@ -154,7 +154,7 @@ def receiveBoardInfo():
         except:
                 ser.flush()
                 ser.close()
-                ++atempt_counter
+                ++attempt_counter
                 sendBoardInfo()
         else:
             ser.flush()
@@ -181,9 +181,10 @@ def counterBitON(data):
       count+=count
   return count  
 
-attemptcounter=0
+attempt_counter=0
+
 def receiveData():
-  
+    global attempt_counter
     counter=0;
     receivedRawString= dict()
     receivedPWM = dict()
@@ -223,25 +224,25 @@ def receiveData():
         while(ser.read(1)!=chr(SEND_STATUS)):
             sleep(5)
             AVAILABLE=False            
-            ++atempt_counter
+            ++attempt_counter
             ser.flush()
             ser.close()
             receiveData()
             if (attempt_counter>COM_ATTEMPTS):
                 ser.close()
-                atempt_counter=0
+                attempt_counter=0
                 return None
     except:
         if (attempt_counter<COM_ATTEMPTS):
             sleep(5)
             AVAILABLE=False
-            ++atempt_counter
+            ++attempt_counter
             ser.flush()
             ser.close()
             receiveData()
         else:
             ser.close()
-            atempt_counter=0
+            attempt_counter=0
             AVAILABLE=False
             return None
     else:
@@ -258,6 +259,7 @@ def receiveData():
                 ++counter
             except:
                 AVAILABLE=False
+                ser.close()
                 receiveData()
 
         if (receivedRawString[f'12']!=chr(IS_ANALOG_READ)):
@@ -266,7 +268,7 @@ def receiveData():
             ser.write(chr(RESEND))
             sleep(5)
             ser.close()
-            ++atempt_counter
+            ++attempt_counter
             receiveData()
                 
         bufferPortD= receivedRawString[f'0']
@@ -317,18 +319,19 @@ def receiveData():
                 sleep(5)
                 ser.close()
                 AVAILABLE=False
-                ++atempt_counter
+                ++attempt_counter
                 receiveData()
 
             except:
                 AVAILABLE=False
-                ++atempt_counter
+                ++attempt_counter
+                ser.close
                 receiveData()
 
         sendChar(RECEIVED);
         flush();
         ser.close()
-        atempt_counter=0
+        attempt_counter=0
 
         PORTD = bufferPortD
         DDRD = bufferDDRD
@@ -384,9 +387,9 @@ def receiveData():
             
 # THIS IS THE FUNCTION TO SEND BOARD ACTIONS          
 
-atempt_counter=0
+attempt_counter=0
 def sendBoardUpdate():
-
+    global attempt_counter
     if (attempt_counter>COM_ATTEMPTS):
         ser.close()
         attempt_counter=0
@@ -402,13 +405,13 @@ def sendBoardUpdate():
             pass
         while (receivedAction!=chr(PC_REGISTERS_UPDATE)):
             ser.flush()
-            ++atempt_counter
+            ++attempt_counter
             sendBoardUpdate()
             
     except:
             ser.flush()
             sleep(5)
-            ++atempt_counter
+            ++attempt_counter
             sendBoardUpdate()            
     else:
         AVAILABLE=True
@@ -471,7 +474,7 @@ def sendBoardUpdate():
             if (receivedAction==RESEND):
                         ser,flush()
                         aleep(5)
-                        ++atempt_counter
+                        ++attempt_counter
                         sendBoardUpdate()
             while (receivedAction!=RECEIVED):
                 resivedAction=ser.read(1)
@@ -480,12 +483,12 @@ def sendBoardUpdate():
                     if (receivedAction==RESEND):
                         ser,flush()
                         sleep(5)
-                        ++atempt_counter
+                        ++attempt_counter
                         sendBoardUpdate()
         except:
                 ser.flush()
                 sleep(5)
-                ++atempt_counter
+                ++attempt_counter
                 sendBoardUpdate()
             
         else:
@@ -576,6 +579,9 @@ topLeftPosition=(int((ScreenWidth- rootSizerWidth)/2),int((ScreenHeight- rootSiz
 
 root.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
 
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
+
 # Binds to check ARDUINO STATUS in any loop
 # at the end with a flag because slow plenty the program the check
 # the counter is to make check after some updates
@@ -591,6 +597,28 @@ counter_availability=0
 COUNTER_LIMIT=50   # This can be changed according usage
 
 mainFrame = ttk.Frame(root, padding ="3 3 12 12")
+mainFrame.grid(column=0, row=0)
+
+mainFrame.columnconfigure(0, weight=1)
+mainFrame.rowconfigure(0, weight=1)
+mainFrame.columnconfigure(1, weight=1)
+mainFrame.columnconfigure(2, weight=1)
+mainFrame.columnconfigure(3, weight=1)
+mainFrame.columnconfigure(4, weight=1)
+mainFrame.columnconfigure(5, weight=16)
+mainFrame.rowconfigure(1, weight=2)             
+mainFrame.rowconfigure(2, weight=1)
+mainFrame.rowconfigure(3, weight=1)
+mainFrame.rowconfigure(4, weight=1)
+mainFrame.rowconfigure(5, weight=1)
+mainFrame.rowconfigure(6, weight=1)
+mainFrame.rowconfigure(7, weight=1)
+mainFrame.rowconfigure(8, weight=1)
+mainFrame.rowconfigure(9, weight=1)
+mainFrame.rowconfigure(10, weight=1)
+mainFrame.rowconfigure(11, weight=1)
+mainFrame.rowconfigure(12, weight=2)
+
 
 # Make an frame special for the image to can resize it well
 
@@ -694,25 +722,26 @@ def convertionReadToVolts(entryValue, pin):
                      
 
 # Screen message function for button to control board
-ttk.Label(mainFrame, text= "To control the board press the button")
+ttk.Label(mainFrame, text= "To control the board press the button").grid(column=2,row=1, columnspan=5, sticky='w')
    
 # buttons to control pin mode
 
-controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock, command=onPressBoardUnlock).grid(column=1,row=2,columnspan=5, sticky=(W,N,S))
+controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock, command=onPressBoardUnlock).grid(column=1,row=1)
 
 
 # Labels for columns
 
-ttk.Label(mainFrame, text= "Mode of Pins").grid(column=1,row=2, sticky=(W,E,N,S))
-ttk.Label(mainFrame, text= "Current value").grid(column=2,row=2, sticky=(W,E,N,S))
-ttk.Label(mainFrame, text= "Value to update").grid(column=3,row=2, sticky=(W,E,N,S))
-ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2, sticky=(W,E,N,S))
+ttk.Label(mainFrame, text= "Mode of Pins").grid(column=1,row=2)
+ttk.Label(mainFrame, text= "Current value").grid(column=2,row=2)
+ttk.Label(mainFrame, text= "Value to update").grid(column=3,row=2)
+ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2)
 
 #function to resize image when window size change PENDING USE FRAME INSTEAD OF LABEL
-#def boardResize(event):
-    boardlabel = event.widget
-    _imageWidth = int(root.winfo_width()/2.5)
-    _imageHeight = int(root.winfo_height()/2.5)
+# RESIZE WORK BUT IS TO SLOW AN MY COMPUTER STAY SOME TIME IN NOT RESPOND UNTIL REDRAW
+# MAYBE I DISABLE IT TO HAVE FASTER ACTIONS.
+def boardResize(event):
+    _imageWidth = int(root.winfo_width()* 0.4)
+    _imageHeight = int(root.winfo_height() * 0.4)
     global sizeChangedBoardImg, sizeChangedBoardPho
     sizeChangedBoardImg= dynamicChangeBoardImg.resize((_imageWidth,_imageHeight))
     sizeChangedBoardPho= ImageTk.PhotoImage(sizeChangedBoardImg)
@@ -731,7 +760,7 @@ dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
 boardlabel= ttk.Label(photoFrame,image=photoBoard)
 boardlabel.pack(fill=BOTH, expand=True, anchor='center')
-photoFrame.grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
+photoFrame.grid(column=5,row=3, rowspan=10)
 
 
 
@@ -742,59 +771,59 @@ photoFrame.grid(column=5,row=3, rowspan=10, sticky=(W,E,N,S))
 pin=mosfet_1_pin
 buttonMos1Stg='PWM'
 
-ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky='nwe')
 buttonMos1= ttk.Button(mainFrame, textvariable=buttonMos1Stg)
-buttonMos1.grid(column =1, row =3, sticky=(W,E,S))
+buttonMos1.grid(column =1, row =3, sticky='swe')
 
 pin=mosfet_2_pin
 buttonMos2Stg='PWM'
 
-ttk.Label(mainFrame, text= "Solar Panel Mosfet").grid(column=1,row=4, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Solar Panel Mosfet").grid(column=1,row=4, sticky='nwe')
 buttonMos2 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
-buttonMos2.grid(column =1, row =4, sticky=(W,E,S))
+buttonMos2.grid(column =1, row =4, sticky='swe')
 
 pin=mosfet_3_pin
 buttonMos3Stg='PWM'
 
-ttk.Label(mainFrame, text= "Wind generator Mosfet").grid(column=1,row=5, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Wind generator Mosfet").grid(column=1,row=5, sticky='nwe')
 buttonMos3 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
-buttonMos3.grid(column =1, row =5, sticky=(W,E,S))
+buttonMos3.grid(column =1, row =5, sticky='swe')
 
 
 pin=battery_voltage_pin
 batteryVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Battery Voltage").grid(column=1,row=6, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Battery Voltage").grid(column=1,row=6, sticky='nwe')
 batteryVolt = ttk.Button(mainFrame, textvariable=batteryVoltStg)
-batteryVolt.grid(column =1, row =6, sticky=(W,E,S))
+batteryVolt.grid(column =1, row =6, sticky='swe')
 
 pin=device_charger_voltage_1
 trafoVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Transformer Voltage").grid(column=1,row=7, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Transformer Voltage").grid(column=1,row=7, sticky='nwe')
 trafoVolt = ttk.Button(mainFrame, textvariable=trafoVoltStg)
-trafoVolt.grid(column =1, row =7, sticky=(W,E,S))
+trafoVolt.grid(column =1, row =7, sticky='swe')
 
 pin=device_charger_voltage_2
 solarVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Solar panel Voltage").grid(column=1,row=8, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Solar panel Voltage").grid(column=1,row=8, sticky='nwe')
 solarVolt = ttk.Button(mainFrame, textvariable=solarVoltStg)
-solarVolt.grid(column =1, row =8, sticky=(W,E,S))
+solarVolt.grid(column =1, row =8, sticky='swe')
 
 pin=device_charger_voltage_3
 windVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Wind gen. Voltage").grid(column=1,row=9, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Wind gen. Voltage").grid(column=1,row=9, sticky='nwe')
 windVolt = ttk.Button(mainFrame, textvariable=windVoltStg)
-windVolt.grid(column =1, row =9, sticky=(W,E,S))
+windVolt.grid(column =1, row =9, sticky='swe')
 
 pin= photo_resistor
 photoResistorStg='INPUT'
 
-ttk.Label(mainFrame, text= "Photo resistor pin").grid(column=1,row=10, sticky=(W,E,N))
+ttk.Label(mainFrame, text= "Photo resistor pin").grid(column=1,row=10, sticky='nwe')
 photoResistor = ttk.Button(mainFrame, textvariable=photoResistorStg)
-photoResistor.grid(column =1, row =10, sticky=(W,E,S))
+photoResistor.grid(column =1, row =10, sticky='swe')
  
 
 def buttonDisabler(pin):
@@ -862,12 +891,12 @@ def onPressMode(pin):
   alertWindow.title("Warning, risk of damage")
   alertWindow.minsize(200,200)
   alertFrame = ttk.Frame(alertWindow, padding ="3 3 12 12")
-  alertFrame.grid(column=0, row=0, sticky=(N,W,E,S))
-  tk.Label(alertFrame, text= "Board mode change read or send voltage signal").grid(column=1,row=1, sticky=(W,E,N,S))
-  tk.Label(alertFrame, text= "THIS IS ONLY TO TEST BOARD CONNECTIONS AND MCU SIGNALS").grid(column=1,row=2, sticky=(W,E,N,S))
-  tk.Label(alertFrame, text= "Do you want to proceed ?").grid(column=1,row=3, sticky=(W,E,N,S))
-  ttk.Button(alertFrame, text="Proceed", command=onPressOk(pin)).grid(column =1, row =4, sticky=(W,E,N,S))
-  ttk.Button(alertFrame, text="Cancell", command=onPressCancell(pin)).grid(column =2, row =4, sticky=(W,E,N,S))
+  alertFrame.grid(column=0, row=0)
+  tk.Label(alertFrame, text= "Board mode change read or send voltage signal").grid(column=1,row=1)
+  tk.Label(alertFrame, text= "THIS IS ONLY TO TEST BOARD CONNECTIONS AND MCU SIGNALS").grid(column=1,row=2)
+  tk.Label(alertFrame, text= "Do you want to proceed ?").grid(column=1,row=3)
+  ttk.Button(alertFrame, text="Proceed", command=onPressOk(pin)).grid(column =1, row =4)
+  ttk.Button(alertFrame, text="Cancell", command=onPressCancell(pin)).grid(column =2, row =4)
 
 def setOutput(pin):
     if (pin<8):
@@ -933,7 +962,7 @@ class CustomMessage(object):
             top.transient(self.parent)
             top.tittle(title)
             top.frame=Frame(top)
-            top.label=tk.Label(frame, text=question).grid(column =1,columnspan=1, row =2, sticky=( W,E,N,S))
+            top.label=tk.Label(frame, text=question).grid(column =1,columnspan=1, row =2)
             top.grab_set()
             i=0
             for key, value in button1config.items():        
@@ -974,35 +1003,35 @@ def onPressCancell(button):
   
     # Entries dissabled for current values
 textMos1 = f'{convertionReadToVolts(pinCurrentValue(mosfet_1_pin),mosfet_1_pin)}'    
-valMos1 = ttk.Entry(mainFrame,textvariable=textMos1).grid(column=2,row=3, sticky=(W,E,N,S))
+valMos1 = ttk.Entry(mainFrame,textvariable=textMos1, state= 'disabled').grid(column=2,row=3)
 #valMos1.state(['disabled'])
 
 textMos2 = f'{convertionReadToVolts(pinCurrentValue(mosfet_2_pin),mosfet_2_pin)}'
-valMos2 = ttk.Entry(mainFrame,textvariable=textMos2).grid(column=2, row=4, sticky=(W,E,N,S))
+valMos2 = ttk.Entry(mainFrame,textvariable=textMos2, state= 'disabled').grid(column=2, row=4)
 #valMos2.state(['disabled'])
 
 textMos3 = f'{convertionReadToVolts(pinCurrentValue(mosfet_3_pin),mosfet_3_pin)}'
-valMos3 = ttk.Entry(mainFrame,textvariable=textMos3).grid(column=2, row=5, sticky=(W,E,N,S))
+valMos3 = ttk.Entry(mainFrame,textvariable=textMos3, state= 'disabled').grid(column=2, row=5)
 #valMos3.state(['disabled'])
 
 textBattery = f'{convertionReadToVolts(pinCurrentValue(battery_voltage_pin),battery_voltage_pin)}'
-valBattery = ttk.Entry(mainFrame,textvariable=textBattery).grid(column=2, row=6, sticky=(W,E,N,S))
+valBattery = ttk.Entry(mainFrame,textvariable=textBattery, state= 'disabled').grid(column=2, row=6)
 #valBattery.state(['disabled'])
 
 textTrafo = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_1),device_charger_voltage_1)}'
-valTrafo = ttk.Entry(mainFrame,textvariable=textTrafo ).grid(column=2, row=7, sticky=(W,E,N,S))
+valTrafo = ttk.Entry(mainFrame,textvariable=textTrafo, state= 'disabled' ).grid(column=2, row=7)
 #valTrafo.state(['disabled'])
 
 textSolar = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_2),device_charger_voltage_2)}'
-valSolar = ttk.Entry(mainFrame,textvariable=textSolar ).grid(column=2, row=8, sticky=(W,E,N,S))
+valSolar = ttk.Entry(mainFrame,textvariable=textSolar, state= 'disabled' ).grid(column=2, row=8)
 #valSolar.state(['disabled'])
 
 textWind = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_3),device_charger_voltage_3)}'
-valWind = ttk.Entry(mainFrame,textvariable=textWind ).grid(column=2,row =9, sticky=(W,E,N,S))
+valWind = ttk.Entry(mainFrame,textvariable=textWind, state= 'disabled' ).grid(column=2,row =9)
 #valWind.state(['disabled'])
 
 textPhotoR = f'{convertionReadToVolts(pinCurrentValue(photo_resistor),photo_resistor)}'
-valPhotoR = ttk.Entry(mainFrame,textvariable=textPhotoR).grid(column =2, row =10, sticky=(W,E,N,S))
+valPhotoR = ttk.Entry(mainFrame,textvariable=textPhotoR, state= 'disabled').grid(column =2, row =10)
 #valPhotoR.state(['disabled'])
 
     # Entries for change values
@@ -1035,14 +1064,14 @@ else:
   entryWindTurbineVolt.state(['disabled'])
   entryPhotoreResistorVolt.state(['disabled'])
 
-entryMosfet1.grid(column =3, row =3, sticky=(W,E,N,S))
-entryMosfet2.grid(column =3, row =4, sticky=(W,E,N,S))
-entryMosfet3.grid(column =3, row =5, sticky=(W,E,N,S))
-entryBatteryVolt.grid(column =3, row =6, sticky=(W,E,N,S))
-entryTrafoVolt.grid(column =3, row =7, sticky=(W,E,N,S))
-entrySolarPanelVolt.grid(column =3, row =8, sticky=(W,E,N,S))
-entryWindTurbineVolt.grid(column =3, row =9, sticky=(W,E,N,S))
-entryPhotoreResistorVolt.grid(column =3, row =10, sticky=(W,E,N,S))
+entryMosfet1.grid(column =3, row =3)
+entryMosfet2.grid(column =3, row =4)
+entryMosfet3.grid(column =3, row =5)
+entryBatteryVolt.grid(column =3, row =6)
+entryTrafoVolt.grid(column =3, row =7)
+entrySolarPanelVolt.grid(column =3, row =8)
+entryWindTurbineVolt.grid(column =3, row =9)
+entryPhotoreResistorVolt.grid(column =3, row =10)
 
 
 
@@ -1057,126 +1086,35 @@ entryPhotoreResistorVolt.grid(column =3, row =10, sticky=(W,E,N,S))
 #Validation the entry with re numbers 1 digit . 0 to 3 digits and also with Ioerror
 validation= re.compile(r'\d[.\d{1,3}]{0,1}')
 
-proceedButton1=ttk.Button(mainFrame, text="Proceed Change")
-proceedButton2=ttk.Button(mainFrame, text="Proceed Change")
-proceedButton3=ttk.Button(mainFrame, text="Proceed Change")
-proceedButton4=ttk.Button(mainFrame, text="Proceed Change")
-proceedButton5=ttk.Button(mainFrame, text="Proceed Change")
-proceedButton6=ttk.Button(mainFrame, text="Proceed Change")
-proceedButton7=ttk.Button(mainFrame, text="Proceed Change")
-proceedButton8=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton=ttk.Button(mainFrame, text="Proceed Change")
 
 
+def onPressProceed():
+    pass      
 
-def onPressProceed(entryValue,pin):
-      
-    match pin:
-      case int(mosfet_1_pin):
-        proceedButton1.state(['disabled'])
-      case int(mosfet_2_pin):
-        proceedButton2.state(['disabled'])
-      case int(mosfet_3_pin):
-        proceedButton3.state(['disabled'])
-      case int(battery_voltage_pin):
-        proceedButton4.state(['disabled'])
-      case int(device_charger_voltage_1):
-        proceedButton5.state(['disabled'])
-      case int(device_charger_voltage_2):
-        proceedButton6.state(['disabled'])
-      case int(device_charger_voltage_3):
-        proceedButton7.state(['disabled'])
-      case int(photo_resistor):
-        proceedButton8.state(['disabled'])
-  
-    matchValid= validation.match(f'{entryValue}')
-    if matchValid!=None:
-        float_entryvalue= float(entryValue)
-        if float_entryvalue<=5:
-            try:
-                controller.analog_write(pin,convertionToWrite(entryValue)) 
-                sleep(5)
-            except :
-                if float_entryvalue==1 or float_entryvalue==0:
-                    try:
-                        controller.digital_write(pin,convertionToWrite(entryValue)) 
-                        sleep(5)
-                    except :
-                        messagebox.showinfo(title="Process Error", icon='warning',message="Pin mode is in Input")
-        else :
-            messagebox.showinfo(title="Process Error", icon='warning',message="Value must be =<5 tree digit maximun 0.000 format for Analog 0.000, 1 or 0 for Digital")
-    else :
-        messagebox.showinfo(title="Process Error", icon='warning',message="Entry data must be a number in range format for Analog 0.000, 1 or 0 for Digital")
-
-    match pin:
-      case int(mosfet_1_pin):
-        proceedButton1.state(['!disabled'])
-      case int(mosfet_2_pin):
-        proceedButton2.state(['!disabled'])
-      case int(mosfet_3_pin):
-        proceedButton3.state(['!disabled'])
-      case int(battery_voltage_pin):
-        proceedButton4.state(['!disabled'])
-      case int(device_charger_voltage_1):
-        proceedButton5.state(['!disabled'])
-      case int(device_charger_voltage_2):
-        proceedButton6.state(['!disabled'])
-      case int(device_charger_voltage_3):
-        proceedButton7.state(['!disabled'])
-      case int(photo_resistor):
-        proceedButton8.state(['!disabled'])
-  
-
-proceedButton1.configure(command=onPressProceed(entryMosfet1,mosfet_1_pin))
-proceedButton2.configure(command=onPressProceed(entryMosfet2,mosfet_2_pin))
-proceedButton3.configure(command=onPressProceed(entryMosfet3,mosfet_3_pin))
-proceedButton4.configure(command=onPressProceed(entryBatteryVolt,battery_voltage_pin))
-proceedButton5.configure(command=onPressProceed(entryTrafoVolt,device_charger_voltage_1))
-proceedButton6.configure(command=onPressProceed(entrySolarPanelVolt,device_charger_voltage_2))
-proceedButton7.configure(command=onPressProceed(entryWindTurbineVolt,device_charger_voltage_3))
-proceedButton8.configure(command=onPressProceed(entryPhotoreResistorVolt,photo_resistor))
+proceedButton.configure(command=onPressProceed())
 
 if (PC_CONTROL_STATE ==1):
-  proceedButton1.state(['!disabled'])
-  proceedButton2.state(['!disabled'])
-  proceedButton3.state(['!disabled'])
-  proceedButton4.state(['!disabled'])
-  proceedButton5.state(['!disabled'])
-  proceedButton6.state(['!disabled'])
-  proceedButton7.state(['!disabled'])
-  proceedButton8.state(['!disabled'])
+  proceedButton.state(['!disabled'])
 
 else:
-  proceedButton1.state(['disabled'])
-  proceedButton2.state(['disabled'])
-  proceedButton3.state(['disabled'])
-  proceedButton4.state(['disabled'])
-  proceedButton5.state(['disabled'])
-  proceedButton6.state(['disabled'])
-  proceedButton7.state(['disabled'])
-  proceedButton8.state(['disabled'])
+  proceedButton.state(['disabled'])
 
                            
-proceedButton1.grid(column =4, row =3, sticky=(W,E,N,S))
-proceedButton2.grid(column =4, row =4, sticky=(W,E,N,S))
-proceedButton3.grid(column =4, row =5, sticky=(W,E,N,S))
-proceedButton4.grid(column =4, row =6, sticky=(W,E,N,S))
-proceedButton5.grid(column =4, row =7, sticky=(W,E,N,S))
-proceedButton6.grid(column =4, row =8, sticky=(W,E,N,S))
-proceedButton7.grid(column =4, row =9, sticky=(W,E,N,S))
-proceedButton8.grid(column =4, row =10, sticky=(W,E,N,S))
+proceedButton.grid(column =4, row =12)
 
 
 # label and buttona to plot and print historic file
-ttk.Label(mainFrame, text="Historical data reporting:").grid(column =1, row =11, sticky=(W,N,S))                            
-ttk.Button(mainFrame, text="Plot").grid(column =2, row =12, sticky=(W,E,N,S))
-ttk.Button(mainFrame, text="Print").grid(column =4, row =12, sticky=(W,E,N,S))
+ttk.Label(mainFrame, text="Historical data reporting:").grid(column =1, row =11, sticky='w')                            
+ttk.Button(mainFrame, text="Plot").grid(column =2, row =12)
+ttk.Button(mainFrame, text="Print").grid(column =3, row =12)
 
 # pending sample data appand on file and plot and print and eventually erase file
 def onPressPlot():
-  print('pending')
+  pass
   
 def onPressPrint():
-  print('pending')
+  pass
 
                           
 for child in mainFrame.winfo_children():
@@ -1184,33 +1122,14 @@ for child in mainFrame.winfo_children():
                
 sleep(5)
 
-mainFrame.columnconfigure(0, weight=1)
-mainFrame.rowconfigure(0, weight=1)
-mainFrame.columnconfigure(1, weight=1)
-mainFrame.columnconfigure(2, weight=1)
-mainFrame.columnconfigure(3, weight=1)
-mainFrame.columnconfigure(4, weight=1)
-mainFrame.columnconfigure(5, weight=16)
-mainFrame.rowconfigure(1, weight=2)             
-mainFrame.rowconfigure(2, weight=1)
-mainFrame.rowconfigure(3, weight=1)
-mainFrame.rowconfigure(4, weight=1)
-mainFrame.rowconfigure(5, weight=1)
-mainFrame.rowconfigure(6, weight=1)
-mainFrame.rowconfigure(7, weight=1)
-mainFrame.rowconfigure(8, weight=1)
-mainFrame.rowconfigure(9, weight=1)
-mainFrame.rowconfigure(10, weight=1)
-mainFrame.rowconfigure(11, weight=1)
-mainFrame.rowconfigure(12, weight=2)
-mainFrame.grid(column=0, row=0, sticky=(N,W,E,S))
 
-root.bind('<Activate>',receiveData())
-root.bind('<Deactivate>',receiveData())
-root.bind('<Visibility>',receiveData())
 
-root.columnconfigure(0, weight=1)
-root.rowconfigure(0, weight=1)
+
+# root.bind('<Activate>',receiveData())
+# root.bind('<Deactivate>',receiveData())
+# root.bind('<Visibility>',receiveData())
+
+
 root.bind('<Configure>',boardResize)
 
 root.mainloop()                                 
