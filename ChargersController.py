@@ -166,9 +166,11 @@ def receiveBoardInfo():
 
 def setBit( n, pos):
         n|=( 1<< pos )
+        return n
 
 def unsetBit( n, pos):
         n&=~( 1<< pos )
+        return n
 
 def bitON( n, pos):
         return ( n & (1<<pos)!=0)
@@ -551,10 +553,10 @@ photo_resistor = A7
 # FIRST ASIGMENT  OF PORT BEFORE SERIAL CONNECTION TO ARDUINO ACCORDING ARDUINO PROGRAM
 # DDRn = PIN MODE 0 INPUT / PORTn = HIGH OR LOW DDRn 1 AND PORTn 1 INPUT PULLUP RESISTOR FOR CONNECTION NOT GROUNDED 
 
-setBit(DDRD,PC_CONTROL_PIN)
-setBit(DDRC,mosfet_1_pin-14) # 14 for arduino is 0 port C in chip
-setBit(DDRB,mosfet_2_pin-6) # 0,1 reserved 2 in PORTB will be 8 in arduino
-setBit(DDRB,mosfet_3_pin-6)
+DDRD= setBit(DDRD,PC_CONTROL_PIN)
+DDRC= setBit(DDRC,mosfet_1_pin-14) # 14 for arduino is 0 port C in chip
+DDRB= setBit(DDRB,mosfet_2_pin-6) # 0,1 reserved 2 in PORTB will be 8 in arduino
+DDRB= setBit(DDRB,mosfet_3_pin-6)
 
 # REST OF PINS ARE INPUT AND DONT NEED PULL UP SINCE HAVE CAPACITORS AND GROUND RESISTORS 
 
@@ -606,39 +608,31 @@ mainFrame.columnconfigure(2, weight=1)
 mainFrame.columnconfigure(3, weight=1)
 mainFrame.columnconfigure(4, weight=1)
 mainFrame.columnconfigure(5, weight=16)
-mainFrame.rowconfigure(1, weight=2)             
+mainFrame.rowconfigure(1, weight=1)             
 mainFrame.rowconfigure(2, weight=1)
 mainFrame.rowconfigure(3, weight=1)
-mainFrame.rowconfigure(4, weight=1)
+mainFrame.rowconfigure(4, weight=2)
 mainFrame.rowconfigure(5, weight=1)
-mainFrame.rowconfigure(6, weight=1)
+mainFrame.rowconfigure(6, weight=2)
 mainFrame.rowconfigure(7, weight=1)
-mainFrame.rowconfigure(8, weight=1)
+mainFrame.rowconfigure(8, weight=2)
 mainFrame.rowconfigure(9, weight=1)
-mainFrame.rowconfigure(10, weight=1)
+mainFrame.rowconfigure(10, weight=2)
 mainFrame.rowconfigure(11, weight=1)
 mainFrame.rowconfigure(12, weight=2)
+mainFrame.rowconfigure(13, weight=1)
+mainFrame.rowconfigure(14, weight=2)
+mainFrame.rowconfigure(15, weight=1)
+mainFrame.rowconfigure(16, weight=2)
+mainFrame.rowconfigure(17, weight=1)
+mainFrame.rowconfigure(18, weight=2)
+mainFrame.rowconfigure(19, weight=3)
+mainFrame.rowconfigure(20, weight=1)
 
 
 # Make an frame special for the image to can resize it well
 
 photoFrame = ttk.Frame(mainFrame, padding ="3 3 12 12")
-
-textUnlock= 'DISABLED'
-
-def onPressBoardUnlock():
-    controlBoardPBtn.state('disabled')
-
-    if (bitON(PORTD,PC_CONTROL_PIN)):
-        PC_CONTROL_STATE =0
-        textUnlock='DISABLED'
-        controlBoardPBtn.state('!disabled')
-        unsetBit(PORTD,PC_CONTROL_PIN) # THIS ONLY CHANGE THE VARIABLE AND SCREEN VIEW PROCESS CHANGE BUTTON UPDATE ARDUINO
-    else:
-        PC_CONTROL_STATE =1
-        textUnlock="ENABLED"
-        controlBoardPBtn.state('!disabled')
-        setBit(PORTD,PC_CONTROL_PIN) # THIS ONLY CHANGE THE VARIABLE AND SCREEN VIEW PROCESS CHANGE BUTTON UPDATE ARDUINO
 
 # variables for button text
 
@@ -722,11 +716,32 @@ def convertionReadToVolts(entryValue, pin):
                      
 
 # Screen message function for button to control board
-ttk.Label(mainFrame, text= "To control the board press the button").grid(column=2,row=1, columnspan=5, sticky='w')
+ttk.Label(mainFrame, text= "<= To control the board press the button").grid(column=2,row=1, columnspan=5, sticky='w')
    
 # buttons to control pin mode
 
-controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock, command=onPressBoardUnlock).grid(column=1,row=1)
+textUnlock= StringVar()
+textUnlock.set('DISABLED')
+
+def controlBoardPBtn():
+    global controlBoardPBtn, PORTD
+
+    controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock,state='disabled')
+
+    if (bitON(PORTD,PC_CONTROL_PIN)):
+        PC_CONTROL_STATE =0
+        textUnlock.set('DISABLED') 
+        PORTD= unsetBit(PORTD,PC_CONTROL_PIN) # THIS ONLY CHANGE THE VARIABLE AND SCREEN VIEW PROCESS CHANGE BUTTON UPDATE ARDUINO
+       
+    else:
+        PC_CONTROL_STATE =1
+        textUnlock.set("ENABLED")
+        PORTD = setBit(PORTD,PC_CONTROL_PIN) # THIS ONLY CHANGE THE VARIABLE AND SCREEN VIEW PROCESS CHANGE BUTTON UPDATE ARDUINO
+               
+    controlBoardPBtn.state=(['enabled'])
+    
+controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock, command = controlBoardPBtn, state='enabled').grid(column=1,row=1)
+
 
 
 # Labels for columns
@@ -734,7 +749,7 @@ controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock, command=onPres
 ttk.Label(mainFrame, text= "Mode of Pins").grid(column=1,row=2)
 ttk.Label(mainFrame, text= "Current value").grid(column=2,row=2)
 ttk.Label(mainFrame, text= "Value to update").grid(column=3,row=2)
-ttk.Label(mainFrame, text= "Process change").grid(column=4,row=2)
+ttk.Label(mainFrame, text= "<= To process changes and send them to the ARDUINO board  press the button").grid(column=5, row=2, sticky ="w")
 
 #function to resize image when window size change PENDING USE FRAME INSTEAD OF LABEL
 # RESIZE WORK BUT IS TO SLOW AN MY COMPUTER STAY SOME TIME IN NOT RESPOND UNTIL REDRAW
@@ -760,7 +775,7 @@ dynamicChangeBoardImg=boardImage.copy()
 photoBoard=ImageTk.PhotoImage(resizedboardImage)
 boardlabel= ttk.Label(photoFrame,image=photoBoard)
 boardlabel.pack(fill=BOTH, expand=True, anchor='center')
-photoFrame.grid(column=5,row=3, rowspan=10)
+photoFrame.grid(column=5,row=3, rowspan=18)
 
 
 
@@ -769,61 +784,77 @@ photoFrame.grid(column=5,row=3, rowspan=10)
 # Buttons to PIN MODE 
 
 pin=mosfet_1_pin
-buttonMos1Stg='PWM'
 
-ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky='nwe')
+buttonMos1Stg= StringVar()
+buttonMos1Stg.set('PWM')
+
+ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky='n')
 buttonMos1= ttk.Button(mainFrame, textvariable=buttonMos1Stg)
-buttonMos1.grid(column =1, row =3, sticky='swe')
+buttonMos1.grid(column =1, row =4, sticky='s')
 
 pin=mosfet_2_pin
-buttonMos2Stg='PWM'
 
-ttk.Label(mainFrame, text= "Solar Panel Mosfet").grid(column=1,row=4, sticky='nwe')
+buttonMos2Stg= StringVar()
+buttonMos2Stg.set('PWM')
+
+ttk.Label(mainFrame, text= "Solar Panel Mosfet").grid(column=1,row=5, sticky='n')
 buttonMos2 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
-buttonMos2.grid(column =1, row =4, sticky='swe')
+buttonMos2.grid(column =1, row =6, sticky='s')
 
 pin=mosfet_3_pin
-buttonMos3Stg='PWM'
 
-ttk.Label(mainFrame, text= "Wind generator Mosfet").grid(column=1,row=5, sticky='nwe')
+buttonMos3Stg= StringVar()
+buttonMos3Stg.set('PWM')
+
+ttk.Label(mainFrame, text= "Wind generator Mosfet").grid(column=1,row=7, sticky='n')
 buttonMos3 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
-buttonMos3.grid(column =1, row =5, sticky='swe')
+buttonMos3.grid(column =1, row =8, sticky='s')
 
 
 pin=battery_voltage_pin
-batteryVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Battery Voltage").grid(column=1,row=6, sticky='nwe')
+batteryVoltStg= StringVar()
+batteryVoltStg.set('INPUT')
+
+ttk.Label(mainFrame, text= "Battery Voltage").grid(column=1,row=9, sticky='n')
 batteryVolt = ttk.Button(mainFrame, textvariable=batteryVoltStg)
-batteryVolt.grid(column =1, row =6, sticky='swe')
+batteryVolt.grid(column =1, row =10, sticky='s')
 
 pin=device_charger_voltage_1
-trafoVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Transformer Voltage").grid(column=1,row=7, sticky='nwe')
+trafoVoltStg= StringVar()
+trafoVoltStg.set('INPUT')
+
+ttk.Label(mainFrame, text= "Transformer Voltage").grid(column=1,row=11, sticky='n')
 trafoVolt = ttk.Button(mainFrame, textvariable=trafoVoltStg)
-trafoVolt.grid(column =1, row =7, sticky='swe')
+trafoVolt.grid(column =1, row =12, sticky='s')
 
 pin=device_charger_voltage_2
-solarVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Solar panel Voltage").grid(column=1,row=8, sticky='nwe')
+solarVoltStg= StringVar()
+solarVoltStg.set('INPUT')
+
+ttk.Label(mainFrame, text= "Solar panel Voltage").grid(column=1,row=13, sticky='n')
 solarVolt = ttk.Button(mainFrame, textvariable=solarVoltStg)
-solarVolt.grid(column =1, row =8, sticky='swe')
+solarVolt.grid(column =1, row =14, sticky='s')
 
 pin=device_charger_voltage_3
-windVoltStg='INPUT'
 
-ttk.Label(mainFrame, text= "Wind gen. Voltage").grid(column=1,row=9, sticky='nwe')
+windVoltStg= StringVar()
+windVoltStg.set('INPUT')
+
+ttk.Label(mainFrame, text= "Wind gen. Voltage").grid(column=1,row=15, sticky='n')
 windVolt = ttk.Button(mainFrame, textvariable=windVoltStg)
-windVolt.grid(column =1, row =9, sticky='swe')
+windVolt.grid(column =1, row =16, sticky='s')
 
 pin= photo_resistor
-photoResistorStg='INPUT'
 
-ttk.Label(mainFrame, text= "Photo resistor pin").grid(column=1,row=10, sticky='nwe')
+photoResistorStg= StringVar()
+photoResistorStg.set('INPUT')
+
+ttk.Label(mainFrame, text= "Photo resistor pin").grid(column=1,row=17, sticky='n')
 photoResistor = ttk.Button(mainFrame, textvariable=photoResistorStg)
-photoResistor.grid(column =1, row =10, sticky='swe')
+photoResistor.grid(column =1, row =18, sticky='s')
  
 
 def buttonDisabler(pin):
@@ -900,38 +931,38 @@ def onPressMode(pin):
 
 def setOutput(pin):
     if (pin<8):
-        setbit(toUpdateDDRD,pin)        
+        toUpdateDDRD= setBit(toUpdateDDRD,pin)        
     elif (pin<14):
-        setbit(toUpdateDDRB,pin) 
+        toUpdateDDRB= setBit(toUpdateDDRB,pin) 
     else:
-        setbit(toUpdateDDRC,pin)
+        toUpdateDDRC= setBit(toUpdateDDRC,pin)
     textToButton('OUTPUT',pin)
 
 def setPWM(pin):
     if (pin<8):
-        setbit(toUpdateDDRD,pin)        
+        toUpdateDDRD= setbit(toUpdateDDRD,pin)        
     elif (pin<14):
-        setbit(toUpdateDDRB,pin) 
+        toUpdateDDRB= setbit(toUpdateDDRB,pin) 
     else:
-        setbit(toUpdateDDRC,pin)
+        toUpdateDDRC= setbit(toUpdateDDRC,pin)
     textToButton('PWM',pin)
 
 def setServo(pin):
     if (pin<8):
-        setbit(toUpdateDDRD,pin)        
+        toUpdateDDRD= setbit(toUpdateDDRD,pin)        
     elif (pin<14):
-        setbit(toUpdateDDRB,pin) 
+        toUpdateDDRB= setbit(toUpdateDDRB,pin) 
     else:
-        setbit(toUpdateDDRC,pin) 
+        toUpdateDDRC= setbit(toUpdateDDRC,pin) 
     textToButton('SERVO',pin)
 
 def setInput(pin):
     if (pin<8):
-        unsetbit(toUpdateDDRD,pin)        
+        toUpdateDDRD= unsetbit(toUpdateDDRD,pin)        
     elif (pin<14):
-        unsetbit(toUpdateDDRB,pin) 
+        toUpdateDDRB= unsetbit(toUpdateDDRB,pin) 
     else:
-        unsetbit(toUpdateDDRC,pin) 
+        toUpdateDDRC= unsetbit(toUpdateDDRC,pin) 
     textToButton('INPUT',pin)
 
 # class to define custom boxes with plenty buttons to change pin status
@@ -1003,35 +1034,35 @@ def onPressCancell(button):
   
     # Entries dissabled for current values
 textMos1 = f'{convertionReadToVolts(pinCurrentValue(mosfet_1_pin),mosfet_1_pin)}'    
-valMos1 = ttk.Entry(mainFrame,textvariable=textMos1, state= 'disabled').grid(column=2,row=3)
+valMos1 = ttk.Entry(mainFrame,textvariable=textMos1, state= 'disabled').grid(column=2,row=4)
 #valMos1.state(['disabled'])
 
 textMos2 = f'{convertionReadToVolts(pinCurrentValue(mosfet_2_pin),mosfet_2_pin)}'
-valMos2 = ttk.Entry(mainFrame,textvariable=textMos2, state= 'disabled').grid(column=2, row=4)
+valMos2 = ttk.Entry(mainFrame,textvariable=textMos2, state= 'disabled').grid(column=2, row=6)
 #valMos2.state(['disabled'])
 
 textMos3 = f'{convertionReadToVolts(pinCurrentValue(mosfet_3_pin),mosfet_3_pin)}'
-valMos3 = ttk.Entry(mainFrame,textvariable=textMos3, state= 'disabled').grid(column=2, row=5)
+valMos3 = ttk.Entry(mainFrame,textvariable=textMos3, state= 'disabled').grid(column=2, row=8)
 #valMos3.state(['disabled'])
 
 textBattery = f'{convertionReadToVolts(pinCurrentValue(battery_voltage_pin),battery_voltage_pin)}'
-valBattery = ttk.Entry(mainFrame,textvariable=textBattery, state= 'disabled').grid(column=2, row=6)
+valBattery = ttk.Entry(mainFrame,textvariable=textBattery, state= 'disabled').grid(column=2, row=10)
 #valBattery.state(['disabled'])
 
 textTrafo = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_1),device_charger_voltage_1)}'
-valTrafo = ttk.Entry(mainFrame,textvariable=textTrafo, state= 'disabled' ).grid(column=2, row=7)
+valTrafo = ttk.Entry(mainFrame,textvariable=textTrafo, state= 'disabled' ).grid(column=2, row=12)
 #valTrafo.state(['disabled'])
 
 textSolar = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_2),device_charger_voltage_2)}'
-valSolar = ttk.Entry(mainFrame,textvariable=textSolar, state= 'disabled' ).grid(column=2, row=8)
+valSolar = ttk.Entry(mainFrame,textvariable=textSolar, state= 'disabled' ).grid(column=2, row=14)
 #valSolar.state(['disabled'])
 
 textWind = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_3),device_charger_voltage_3)}'
-valWind = ttk.Entry(mainFrame,textvariable=textWind, state= 'disabled' ).grid(column=2,row =9)
+valWind = ttk.Entry(mainFrame,textvariable=textWind, state= 'disabled' ).grid(column=2,row =16)
 #valWind.state(['disabled'])
 
 textPhotoR = f'{convertionReadToVolts(pinCurrentValue(photo_resistor),photo_resistor)}'
-valPhotoR = ttk.Entry(mainFrame,textvariable=textPhotoR, state= 'disabled').grid(column =2, row =10)
+valPhotoR = ttk.Entry(mainFrame,textvariable=textPhotoR, state= 'disabled').grid(column =2, row =18)
 #valPhotoR.state(['disabled'])
 
     # Entries for change values
@@ -1064,14 +1095,14 @@ else:
   entryWindTurbineVolt.state(['disabled'])
   entryPhotoreResistorVolt.state(['disabled'])
 
-entryMosfet1.grid(column =3, row =3)
-entryMosfet2.grid(column =3, row =4)
-entryMosfet3.grid(column =3, row =5)
-entryBatteryVolt.grid(column =3, row =6)
-entryTrafoVolt.grid(column =3, row =7)
-entrySolarPanelVolt.grid(column =3, row =8)
-entryWindTurbineVolt.grid(column =3, row =9)
-entryPhotoreResistorVolt.grid(column =3, row =10)
+entryMosfet1.grid(column =3, row =4)
+entryMosfet2.grid(column =3, row =6)
+entryMosfet3.grid(column =3, row =8)
+entryBatteryVolt.grid(column =3, row =10)
+entryTrafoVolt.grid(column =3, row =12)
+entrySolarPanelVolt.grid(column =3, row =14)
+entryWindTurbineVolt.grid(column =3, row =16)
+entryPhotoreResistorVolt.grid(column =3, row =18)
 
 
 
@@ -1086,7 +1117,7 @@ entryPhotoreResistorVolt.grid(column =3, row =10)
 #Validation the entry with re numbers 1 digit . 0 to 3 digits and also with Ioerror
 validation= re.compile(r'\d[.\d{1,3}]{0,1}')
 
-proceedButton=ttk.Button(mainFrame, text="Proceed Change")
+proceedButton=ttk.Button(mainFrame, text="SEND UPDATE")
 
 
 def onPressProceed():
@@ -1101,13 +1132,13 @@ else:
   proceedButton.state(['disabled'])
 
                            
-proceedButton.grid(column =4, row =12)
+proceedButton.grid(column =4, row =2)
 
 
 # label and buttona to plot and print historic file
-ttk.Label(mainFrame, text="Historical data reporting:").grid(column =1, row =11, sticky='w')                            
-ttk.Button(mainFrame, text="Plot").grid(column =2, row =12)
-ttk.Button(mainFrame, text="Print").grid(column =3, row =12)
+ttk.Label(mainFrame, text="Historical data reporting:").grid(column =1, row =19, sticky='sw')                            
+ttk.Button(mainFrame, text="Plot").grid(column =2, row =20)
+ttk.Button(mainFrame, text="Print").grid(column =3, row =20)
 
 # pending sample data appand on file and plot and print and eventually erase file
 def onPressPlot():
