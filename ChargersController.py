@@ -732,12 +732,13 @@ def controlBoardPBtn():
         PC_CONTROL_STATE =0
         textUnlock.set('DISABLED') 
         PORTD= unsetBit(PORTD,PC_CONTROL_PIN) # THIS ONLY CHANGE THE VARIABLE AND SCREEN VIEW PROCESS CHANGE BUTTON UPDATE ARDUINO
-       
+        print(PC_CONTROL_STATE)
     else:
         PC_CONTROL_STATE =1
         textUnlock.set("ENABLED")
         PORTD = setBit(PORTD,PC_CONTROL_PIN) # THIS ONLY CHANGE THE VARIABLE AND SCREEN VIEW PROCESS CHANGE BUTTON UPDATE ARDUINO
-               
+        print(PC_CONTROL_STATE)
+        
     controlBoardPBtn.state=(['enabled'])
     
 controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock, command = controlBoardPBtn, state='enabled').grid(column=1,row=1)
@@ -745,11 +746,13 @@ controlBoardPBtn=ttk.Button(mainFrame, textvariable = textUnlock, command = cont
 
 
 # Labels for columns
-
+ttk.Label(mainFrame, text= "Pin nbr.").grid(column=0,row=2)
 ttk.Label(mainFrame, text= "Mode of Pins").grid(column=1,row=2)
 ttk.Label(mainFrame, text= "Current value").grid(column=2,row=2)
 ttk.Label(mainFrame, text= "Value to update").grid(column=3,row=2)
-ttk.Label(mainFrame, text= "<= To process changes and send them to the ARDUINO board  press the button").grid(column=5, row=2, sticky ="w")
+ttk.Label(mainFrame, text= "<= To process changes and send them to the ARDUINO board  press the button").grid(column=5, row=1, sticky ="w")
+ttk.Label(mainFrame, text= "Check to update").grid(column=4, row=2, sticky ="w")
+
 
 #function to resize image when window size change PENDING USE FRAME INSTEAD OF LABEL
 # RESIZE WORK BUT IS TO SLOW AN MY COMPUTER STAY SOME TIME IN NOT RESPOND UNTIL REDRAW
@@ -788,6 +791,7 @@ pin=mosfet_1_pin
 buttonMos1Stg= StringVar()
 buttonMos1Stg.set('PWM')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=3, sticky='n')
 ttk.Label(mainFrame, text= "Transformer AC/DC Mosfet").grid(column=1,row=3, sticky='n')
 buttonMos1= ttk.Button(mainFrame, textvariable=buttonMos1Stg)
 buttonMos1.grid(column =1, row =4, sticky='s')
@@ -797,6 +801,7 @@ pin=mosfet_2_pin
 buttonMos2Stg= StringVar()
 buttonMos2Stg.set('PWM')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=5, sticky='n')
 ttk.Label(mainFrame, text= "Solar Panel Mosfet").grid(column=1,row=5, sticky='n')
 buttonMos2 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
 buttonMos2.grid(column =1, row =6, sticky='s')
@@ -806,6 +811,7 @@ pin=mosfet_3_pin
 buttonMos3Stg= StringVar()
 buttonMos3Stg.set('PWM')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=7, sticky='n')
 ttk.Label(mainFrame, text= "Wind generator Mosfet").grid(column=1,row=7, sticky='n')
 buttonMos3 = ttk.Button(mainFrame, textvariable=buttonMos2Stg)
 buttonMos3.grid(column =1, row =8, sticky='s')
@@ -816,6 +822,7 @@ pin=battery_voltage_pin
 batteryVoltStg= StringVar()
 batteryVoltStg.set('INPUT')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=9, sticky='n')
 ttk.Label(mainFrame, text= "Battery Voltage").grid(column=1,row=9, sticky='n')
 batteryVolt = ttk.Button(mainFrame, textvariable=batteryVoltStg)
 batteryVolt.grid(column =1, row =10, sticky='s')
@@ -825,6 +832,7 @@ pin=device_charger_voltage_1
 trafoVoltStg= StringVar()
 trafoVoltStg.set('INPUT')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=11, sticky='n')
 ttk.Label(mainFrame, text= "Transformer Voltage").grid(column=1,row=11, sticky='n')
 trafoVolt = ttk.Button(mainFrame, textvariable=trafoVoltStg)
 trafoVolt.grid(column =1, row =12, sticky='s')
@@ -834,6 +842,7 @@ pin=device_charger_voltage_2
 solarVoltStg= StringVar()
 solarVoltStg.set('INPUT')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=13, sticky='n')
 ttk.Label(mainFrame, text= "Solar panel Voltage").grid(column=1,row=13, sticky='n')
 solarVolt = ttk.Button(mainFrame, textvariable=solarVoltStg)
 solarVolt.grid(column =1, row =14, sticky='s')
@@ -843,6 +852,7 @@ pin=device_charger_voltage_3
 windVoltStg= StringVar()
 windVoltStg.set('INPUT')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=15, sticky='n')
 ttk.Label(mainFrame, text= "Wind gen. Voltage").grid(column=1,row=15, sticky='n')
 windVolt = ttk.Button(mainFrame, textvariable=windVoltStg)
 windVolt.grid(column =1, row =16, sticky='s')
@@ -852,6 +862,7 @@ pin= photo_resistor
 photoResistorStg= StringVar()
 photoResistorStg.set('INPUT')
 
+ttk.Label(mainFrame, text= f'{pin}').grid(column=0,row=17, sticky='n')
 ttk.Label(mainFrame, text= "Photo resistor pin").grid(column=1,row=17, sticky='n')
 photoResistor = ttk.Button(mainFrame, textvariable=photoResistorStg)
 photoResistor.grid(column =1, row =18, sticky='s')
@@ -860,7 +871,6 @@ photoResistor.grid(column =1, row =18, sticky='s')
 def buttonDisabler(pin):
 
   global buttonMos1, buttonMos2, buttonMos3, batteryVolt, trafoVolt, solarVolt, photoResistor
-# can be used frame parent instead of global   
   if pin==mosfet_1_pin:
       buttonMos1.state(['disabled'])
   elif pin==mosfet_2_pin:
@@ -900,19 +910,19 @@ def buttonEnabler(pin):
 def textToButton(text,pin):
   global buttonMos1Stg, buttonMos2Stg, buttonMos3Stg, batteryVoltStg, trafoVoltStg, solarVoltStg, windVoltStg, photoResistorStg
   if pin==mosfet_1_pin:
-      buttonMos1Stg = text
+      buttonMos1Stg.set(text)
   elif pin==mosfet_2_pin:
       buttonMos2Stg = text
   elif pin==mosfet_3_pin:
-      buttonMos3Stg = text
+      buttonMos3Stg.set(text)
   elif pin==battery_voltage_pin:
-      batteryVoltStg = text
+      batteryVoltStg.set(text)
   elif pin==device_charger_voltage_1:
-      trafoVoltStg = text
+      trafoVoltStg.set(text)
   elif pin==device_charger_voltage_2:
-      solarVoltStg = text
+      solarVoltStg.set(text)
   elif pin==device_charger_voltage_3:
-      windVoltStg = text
+      windVoltStg.set(text)
   else: 
       photoResistorStg = text
 
@@ -1035,65 +1045,198 @@ def onPressCancell(button):
     # Entries dissabled for current values
 textMos1 = f'{convertionReadToVolts(pinCurrentValue(mosfet_1_pin),mosfet_1_pin)}'    
 valMos1 = ttk.Entry(mainFrame,textvariable=textMos1, state= 'disabled').grid(column=2,row=4)
-#valMos1.state(['disabled'])
 
 textMos2 = f'{convertionReadToVolts(pinCurrentValue(mosfet_2_pin),mosfet_2_pin)}'
 valMos2 = ttk.Entry(mainFrame,textvariable=textMos2, state= 'disabled').grid(column=2, row=6)
-#valMos2.state(['disabled'])
 
 textMos3 = f'{convertionReadToVolts(pinCurrentValue(mosfet_3_pin),mosfet_3_pin)}'
 valMos3 = ttk.Entry(mainFrame,textvariable=textMos3, state= 'disabled').grid(column=2, row=8)
-#valMos3.state(['disabled'])
 
 textBattery = f'{convertionReadToVolts(pinCurrentValue(battery_voltage_pin),battery_voltage_pin)}'
 valBattery = ttk.Entry(mainFrame,textvariable=textBattery, state= 'disabled').grid(column=2, row=10)
-#valBattery.state(['disabled'])
 
 textTrafo = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_1),device_charger_voltage_1)}'
 valTrafo = ttk.Entry(mainFrame,textvariable=textTrafo, state= 'disabled' ).grid(column=2, row=12)
-#valTrafo.state(['disabled'])
 
 textSolar = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_2),device_charger_voltage_2)}'
 valSolar = ttk.Entry(mainFrame,textvariable=textSolar, state= 'disabled' ).grid(column=2, row=14)
-#valSolar.state(['disabled'])
 
 textWind = f'{convertionReadToVolts(pinCurrentValue(device_charger_voltage_3),device_charger_voltage_3)}'
 valWind = ttk.Entry(mainFrame,textvariable=textWind, state= 'disabled' ).grid(column=2,row =16)
-#valWind.state(['disabled'])
 
 textPhotoR = f'{convertionReadToVolts(pinCurrentValue(photo_resistor),photo_resistor)}'
 valPhotoR = ttk.Entry(mainFrame,textvariable=textPhotoR, state= 'disabled').grid(column =2, row =18)
-#valPhotoR.state(['disabled'])
+
+# functions to enable entry and disable with a .bind
+
+def enablerMos1(event):
+
+    entryMosfet1 = event.widget
+
+    boolchk = chkMos1State.get()
+
+    print(PC_CONTROL_STATE)
+    print(chkMos1State.get())
+    print(boolchk)
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entryMosfet1.state(['enabled'])
+          print('enabled')
+    else:
+          entryMosfet1.state(['disabled'])
+          print('disabled')
+          
+def enablerMos2(event):
+    
+    entryMosfet2 = event.widget
+
+    boolchk= chkMos2State.get()
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entryMosfet2.state(['enabled'])      
+    else:
+          entryMosfet2.state(['disabled'])
+
+def enablerMos3(event):
+    
+    entryMosfet3 = event.widget
+
+    boolchk = chkMos3State.get()
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entryMosfet3.state(['enabled'])      
+    else:
+          entryMosfet3.state(['disabled'])
+
+def enablerBattery(event):
+    
+    entryBatteryVolt = event.widget
+
+    boolchk= chkBatState.get()
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entryBatteryVolt.state(['enabled'])      
+    else:
+          entryBatteryVolt.state(['disabled'])
+
+def enablerTrafoVolt(event):
+
+    entryTrafoVolt = event.widget
+
+    boolchk= chkTrafoState.get()
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entryTrafoVolt.state(['enabled'])      
+    else:
+          entryTrafoVolt.state(['disabled'])
+
+def enablerSolar(event):
+    
+    entrySolarPanelVolt = event.widget
+
+    boolchk= chkSolarState.get()
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entrySolarPanelVolt.state(['enabled'])      
+    else:
+          entrySolarPanelVolt.state(['disabled'])          
+
+def enablerWind(event):
+
+    entryWindTurbineVolt = event.widget
+
+    boolchk= chkWindState.get()
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entryWindTurbineVolt.state(['enabled'])      
+    else:
+          entryWindTurbineVolt.state(['disabled'])          
+
+def enablerPhoto(event):
+
+    entryPhotoreResistorVolt = event.widget
+
+    boolchk= chkPhotoState.get()
+    
+    if ((PC_CONTROL_STATE ==1) & boolchk ):
+          entryPhotoreResistorVolt.state(['enabled'])      
+    else:
+          entryPhotoreResistorVolt.state(['disabled'])          
+
+    # Check buttons to change value of a ping
+
+chkMos1State= BooleanVar()
+chkMosfet1= ttk.Checkbutton(mainFrame, variable=chkMos1State,
+onvalue=True, offvalue=False, command = enablerMos1)
+# chkMosfet1.bind('<Configure>',enablerMos1) 
+chkMosfet1.grid(column =4, row =4)
+
+chkMos2State= BooleanVar()
+chkMosfet2= ttk.Checkbutton(mainFrame, variable=chkMos2State,
+onvalue=True, offvalue=False)
+chkMosfet2.bind('<Configure>',enablerMos2) 
+chkMosfet2.grid(column =4, row =6)
+
+chkMos3State= BooleanVar()
+chkMosfet3= ttk.Checkbutton(mainFrame, variable=chkMos3State,
+onvalue=True, offvalue=False)
+chkMosfet3.bind('<Configure>',enablerMos3) 
+chkMosfet3.grid(column =4, row =8)
+
+chkBatState= BooleanVar()
+chkBatteryVolt= ttk.Checkbutton(mainFrame, variable=chkBatState,
+onvalue=True, offvalue=False)
+chkBatteryVolt.bind('<Configure>',enablerBattery) 
+chkBatteryVolt.grid(column =4, row =10)
+
+chkTrafoState= BooleanVar()
+chkTrafoVolt= ttk.Checkbutton(mainFrame, variable=chkTrafoState,
+onvalue=True, offvalue=False)
+chkTrafoVolt.bind('<Configure>',enablerTrafoVolt)
+chkTrafoVolt.grid(column =4, row =12)
+
+chkSolarState= BooleanVar()
+chkSolarPanelVolt= ttk.Checkbutton(mainFrame,  variable=chkSolarState,
+onvalue=True, offvalue=False)
+chkSolarPanelVolt.bind('<Configure>',enablerSolar)
+chkSolarPanelVolt.grid(column =4, row =14)
+
+chkWindState= BooleanVar()
+chkWindTurbineVolt= ttk.Checkbutton(mainFrame,  variable=chkWindState,
+onvalue=True, offvalue=False)
+chkWindTurbineVolt.bind('<Configure>',enablerWind)
+chkWindTurbineVolt.grid(column =4, row =16)
+chkPhotoState= BooleanVar()
+chkPhotoreResistorVolt= ttk.Checkbutton(mainFrame,  variable=chkPhotoState,
+onvalue=True, offvalue=False)
+chkPhotoreResistorVolt.bind('<Configure>',enablerPhoto)
+chkPhotoreResistorVolt.grid(column =4, row =18)
 
     # Entries for change values
 
 entryMosfet1= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_1_pin))
-entryMosfet2= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_2_pin))
-entryMosfet3= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_3_pin))
-entryBatteryVolt= ttk.Entry(mainFrame,show= pinCurrentValue(battery_voltage_pin))
-entryTrafoVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_1))
-entrySolarPanelVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_2))
-entryWindTurbineVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_3))
-entryPhotoreResistorVolt= ttk.Entry(mainFrame,show= pinCurrentValue(photo_resistor))
+entryMosfet1.bind('<Configure>',enablerMos1) 
 
-if (PC_CONTROL_STATE ==1):
-  entryMosfet1.state(['!disabled'])
-  entryMosfet2.state(['!disabled'])
-  entryMosfet3.state(['!disabled'])
-  entryBatteryVolt.state(['!disabled'])
-  entryTrafoVolt.state(['!disabled'])
-  entrySolarPanelVolt.state(['!disabled'])
-  entryWindTurbineVolt.state(['!disabled'])
-  entryPhotoreResistorVolt.state(['!disabled'])
-else:
-  entryMosfet1.state(['disabled'])
-  entryMosfet2.state(['disabled'])
-  entryMosfet3.state(['disabled'])
-  entryBatteryVolt.state(['disabled'])
-  entryTrafoVolt.state(['disabled'])
-  entrySolarPanelVolt.state(['disabled'])
-  entryWindTurbineVolt.state(['disabled'])
-  entryPhotoreResistorVolt.state(['disabled'])
+entryMosfet2= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_2_pin))
+entryMosfet2.bind('<Configure>',enablerMos2) 
+
+entryMosfet3= ttk.Entry(mainFrame,show= pinCurrentValue(mosfet_3_pin))
+entryMosfet3.bind('<Configure>',enablerMos3) 
+
+entryBatteryVolt= ttk.Entry(mainFrame,show= pinCurrentValue(battery_voltage_pin))
+entryBatteryVolt.bind('<Configure>',enablerBattery) 
+
+entryTrafoVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_1))
+entryTrafoVolt.bind('<Configure>',enablerTrafoVolt)
+
+entrySolarPanelVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_2))
+entrySolarPanelVolt.bind('<Configure>',enablerSolar)
+
+entryWindTurbineVolt= ttk.Entry(mainFrame,show= pinCurrentValue(device_charger_voltage_3))
+entryWindTurbineVolt.bind('<Configure>',enablerWind)
+
+entryPhotoreResistorVolt= ttk.Entry(mainFrame,show= pinCurrentValue(photo_resistor))
+entryPhotoreResistorVolt.bind('<Configure>',enablerPhoto)
 
 entryMosfet1.grid(column =3, row =4)
 entryMosfet2.grid(column =3, row =6)
@@ -1106,7 +1249,39 @@ entryPhotoreResistorVolt.grid(column =3, row =18)
 
 
 
+    # Check buttons to change value of a ping
 
+chkMos1State= BooleanVar()
+chkMosfet1= ttk.Checkbutton(mainFrame, variable=chkMos1State,
+onvalue=True, offvalue=False).grid(column =4, row =4)
+
+chkMos2State= BooleanVar()
+chkMosfet2= ttk.Checkbutton(mainFrame, variable=chkMos2State,
+onvalue=True, offvalue=False).grid(column =4, row =6)
+
+chkMos3State= BooleanVar()
+chkMosfet3= ttk.Checkbutton(mainFrame, variable=chkMos3State,
+onvalue=True, offvalue=False).grid(column =4, row =8)
+
+chkBatState= BooleanVar()
+chkBatteryVolt= ttk.Checkbutton(mainFrame, variable=chkBatState,
+onvalue=True, offvalue=False).grid(column =4, row =10)
+
+chkTrafoState= BooleanVar()
+chkTrafoVolt= ttk.Checkbutton(mainFrame, variable=chkTrafoState,
+onvalue=True, offvalue=False).grid(column =4, row =12)
+
+chkSolarState= BooleanVar()
+chkSolarPanelVolt= ttk.Checkbutton(mainFrame,  variable=chkSolarState,
+onvalue=True, offvalue=False).grid(column =4, row =14)
+
+chkWindState= BooleanVar()
+chkWindTurbineVolt= ttk.Checkbutton(mainFrame,  variable=chkWindState,
+onvalue=True, offvalue=False).grid(column =4, row =16)
+
+chkPhotoState= BooleanVar()
+chkPhotoreResistorVolt= ttk.Checkbutton(mainFrame,  variable=chkPhotoState,
+onvalue=True, offvalue=False).grid(column =4, row =18)
 
 
 
@@ -1117,13 +1292,12 @@ entryPhotoreResistorVolt.grid(column =3, row =18)
 #Validation the entry with re numbers 1 digit . 0 to 3 digits and also with Ioerror
 validation= re.compile(r'\d[.\d{1,3}]{0,1}')
 
-proceedButton=ttk.Button(mainFrame, text="SEND UPDATE")
-
-
 def onPressProceed():
     pass      
 
-proceedButton.configure(command=onPressProceed())
+
+proceedButton=ttk.Button(mainFrame, text="SEND UPDATE", command=onPressProceed)
+
 
 if (PC_CONTROL_STATE ==1):
   proceedButton.state(['!disabled'])
@@ -1132,7 +1306,7 @@ else:
   proceedButton.state(['disabled'])
 
                            
-proceedButton.grid(column =4, row =2)
+  proceedButton.grid(column =4, row =1)
 
 
 # label and buttona to plot and print historic file
@@ -1146,6 +1320,11 @@ def onPressPlot():
   
 def onPressPrint():
   pass
+ttk.Label(mainFrame, text="Change of mode is attampted to be for test only f.e. wires or correct analog output").grid(column =1,columnspan=5, row =21,  sticky='w')                            
+ttk.Label(mainFrame, text="Arduino only have three timers in complementary pins pairs so PWM must use only ONE of EACH PAIR FOR A SINGLE NON COMPLEMENTARY OUTPUT.").grid(column =1,columnspan=5, row =22, sticky='w')                            
+ttk.Label(mainFrame, text="History data save a day file with each charger voltage and light each 15 minutes sample ").grid(column =1,columnspan=5, row =23, sticky='w')                            
+ttk.Label(mainFrame, text="This data can be plotted for day, week, month or year").grid(column =1,columnspan=5, row =24, sticky='w')                            
+
 
                           
 for child in mainFrame.winfo_children():
@@ -1156,9 +1335,9 @@ sleep(5)
 
 
 
-# root.bind('<Activate>',receiveData())
-# root.bind('<Deactivate>',receiveData())
-# root.bind('<Visibility>',receiveData())
+# root.bind('<Activate>',receiveData)
+# root.bind('<Deactivate>',receiveData)
+# root.bind('<Visibility>',receiveData)
 
 
 root.bind('<Configure>',boardResize)
