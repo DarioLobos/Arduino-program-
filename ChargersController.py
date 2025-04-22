@@ -8,9 +8,11 @@ import PIL
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
+from tkinter import filedialog
 from PIL import ImageTk, Image
 import os
 import serial
+import serial.tools.list_ports
 import re
 from time import sleep
 
@@ -651,8 +653,89 @@ topLeftPosition=(int((screenWidth- rootSizerWidth)/2),int((screenHeight- rootSiz
 
 root.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
 
+root.configure( background ='DeepSkyBlue2')
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
+
+root.option_add('*tearOff', FALSE)
+
+menubar = Menu(root)
+
+menu_file = Menu(menubar)
+menu_plot = Menu(menubar)
+menu_port = Menu(menubar)
+menu_help = Menu(menubar)
+menubar.add_cascade(menu=menu_file, label='File')
+menubar.add_cascade(menu=menu_plot, label='Plot')
+menubar.add_cascade(menu=menu_port, label='Port')
+menubar.add_cascade(menu=menu_help, label='Help')
+
+def newFile():
+    global filename
+    filename = filedialog.asksaveasfilename()
+
+def openFile():
+    global filename
+    filename = filedialog.askopenfilename()
+
+def saveasFile():
+    global filename
+    filename = filedialog.asksaveasfilename()
+
+def closeFile():
+    global filename
+    filename.close()
+
+def dirFile():
+    global dirname
+    dirname = filedialog.askdirectory()
+    
+def scanPort():
+    global port, screenWidth, screenHeight
+    pass
+
+def setPort():
+    global arduinoPort
+    portlist = serial.tools.list_ports.comports()
+
+    portArray = []
+    radioports = []
+    for d in portlist:
+        if d.name:
+            stringdevice = str(d.name)
+            portArray.append(stringdevice)
+
+    win = Toplevel(root)
+
+    title= 'Port available in device'
+    rootSizerWidth= int(screenWidth*0.2)
+    rootSizerHeight= int(screenHeight*0.25)
+    topLeftPosition=(int((screenWidth- rootSizerWidth)/2),int((screenHeight- rootSizerHeight)/2))
+    win.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
+    win.transient(root)
+
+    for i in range(len(portArray)):
+        portset= portArray[i]
+        radioports.append(ttk.Radiobutton(win, text= portset, variable= arduinoPort, value = portset ).pack())
+    
+    def finish():
+        win.destroy()
+        
+    button= ttk.Button(win, text="OK", command= finish).pack()   
+    
+
+
+
+menu_file.add_command(label='New', command=newFile)
+menu_file.add_command(label='Open', command=openFile)
+menu_file.add_command(label='Save as', command=saveasFile)
+menu_file.add_command(label='Close', command=closeFile)
+menu_file.add_command(label='File directory', command=dirFile)
+menu_port.add_command(label='Scan Port', command=scanPort)
+menu_port.add_command(label='Set Port', command=setPort)
+
+
+root['menu']= menubar
 
 # Binds to check ARDUINO STATUS in any loop
 # at the end with a flag because slow plenty the program the check
@@ -669,7 +752,8 @@ counter_availability=0
 COUNTER_LIMIT=50   # This can be changed according usage
 
 mainFrame = ttk.Frame(root, padding ="3 3 12 12")
-mainFrame.grid(column=0, row=0)
+
+mainFrame.grid(column=0, row=0 , sticky="nswe")
 
 mainFrame.columnconfigure(0, weight=1)
 mainFrame.rowconfigure(0, weight=1)
@@ -831,7 +915,7 @@ def convertionReadToVolts(pin):
 
 
 # Screen message function for button to control board
-ttk.Label(mainFrame, text= "<= To control the board press the button").grid(column=2,row=1, columnspan=5, sticky='w')
+ttk.Label(mainFrame, text= "<= To control board, press button").grid(column=2,row=1, columnspan=3, sticky='w')
    
 # buttons to control pin mode
 
