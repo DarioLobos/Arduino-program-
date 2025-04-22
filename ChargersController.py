@@ -14,6 +14,7 @@ import os
 import serial
 import serial.tools.list_ports
 import re
+import time
 from time import sleep
 
 # Define port type
@@ -670,17 +671,34 @@ menubar.add_cascade(menu=menu_plot, label='Plot')
 menubar.add_cascade(menu=menu_port, label='Port')
 menubar.add_cascade(menu=menu_help, label='Help')
 
+# Make default filename with day and year and program identifier
+
+secs = time.time()
+timehere= time.localtime(secs)
+
+filename= f'Charger_{timehere.tm_year}{timehere.tm_mon}{timehere.tm_mday}'
+print(filename)
+
+initial_directory = "reports"
+
+try: 
+    if not os.path.exists(initial_directory):
+        os.makedirs(initial_directory)
+except:
+    messagebox.showwarning(title='Make the default file not allowed', message="Defaul directory for reports save is not allowed, please verify program permissions")
+
+
 def newFile():
     global filename
-    filename = filedialog.asksaveasfilename()
+    filename = filedialog.asksaveasfilename(initialdir= initial_directory, initialfile = filename , title = "Select file, for best choose default, same extension",filetypes = (("charge files","*.chtx"),("all files","*.*")))
 
 def openFile():
     global filename
-    filename = filedialog.askopenfilename()
+    filename = filedialog.askopenfilename(initialdir= initial_directory, initialfile = filename , title = "Select file, for best choose default, same extension",filetypes = (("charge files","*.chtx"),("all files","*.*")))
 
 def saveasFile():
     global filename
-    filename = filedialog.asksaveasfilename()
+    filename = filedialog.asksaveasfilename(initialdir= initial_directory, initialfile = filename , title = "Select file, for best choose default, same extension",filetypes = (("charge files","*.chtx"),("all files","*.*")))
 
 def closeFile():
     global filename
@@ -688,7 +706,7 @@ def closeFile():
 
 def dirFile():
     global dirname
-    dirname = filedialog.askdirectory()
+    initial_directory = filedialog.askdirectory(initialdir=initial_directory)
     
 def scanPort():
     global port, screenWidth, screenHeight
@@ -2177,16 +2195,34 @@ ttk.Label(mainFrame, text="This data can be plotted for day, week, month or year
                           
 for child in mainFrame.winfo_children():
   child.grid_configure(padx=int(root.winfo_width()/150), pady=int(root.winfo_width()/150))
-               
 
-# root.bind('<Activate>',receiveData)
-# root.bind('<Deactivate>',receiveData)
-# root.bind('<Visibility>',receiveData)
+# CUSTOM EVENT TO HANDLE DATA WITH ARDUINO WITH TIME (REQUEST DATA EACH 5 MINUTES, SAVE EACH 15 MINUTES) AND IDLE OPTION (AFTER ALL WIDGET WORKS ARE FINISHED CAN BE CHAGED FOR LESS TIME 
 
+starttimer = time.perf_counter()  # this will make a counter with next call in seconds
+
+
+def eventTimeFunction():
+    global starttimer
+    print("event called")
+    print(starttimer)
+    nexttimer = time.perf_counter()
+    elapsedtime =  nexttimer - starttimer
+    if int(elapsedtime) >> (5*60):
+        root.after_idle(receiveData)
+        if int(elapsedtime) >> (15*60):
+            secs = time.time()
+            timehere= time.localtime(secs)
+            timestamp= f'{timehere.tm_year}{timehere.tm_mon}{timehere.tm_mday}{timehere.tm_hour}{timehere.tm_min}'
+            print(timestamp)
+            pass  # here will be file data WRITE FILE append first time  stamp next line each 3 voltage readings if not open open, 'a' etc 
+            starttimer = time.perf_counter()
+    root.after((200), eventTimeFunction)
+            
+root.update()
+root.after(100, eventTimeFunction)
 
 root.bind('<Configure>',boardResize)
 
 root.mainloop()                                 
 
 # end of file
-KeyboardInterrupt
