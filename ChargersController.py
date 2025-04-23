@@ -25,7 +25,7 @@ arduinoPort = 'COM1' # Down in the code will have the choise for change, this is
 #                           SERIAL PROTOCOL                           #
 #_____________________________________________________________________#
 #
-ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=2, write_timeout=2)
+ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
 
 # THESE ARE THE VARIABLES USED TO STORE ARDUINO STATUS RECEIVED AND ALSO
 # TO MODIFIED AND SEND THEM BACK TO CHANGE ARDUINO CONFIGURATION
@@ -79,7 +79,7 @@ CHRNULL = 0
 BOARD_INFO =6; # THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER LIBRARY
 PC_REGISTERS_UPDATE = 14; # THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
 
-COM_ATTEMPTS=20;  # THIS IS THE LIMIT OF LOOPS THAT PROGRAM MUST DO TO TRY TO STABLISH COMMUNICATION BEFORE RAISE AN ERROR 
+COM_ATTEMPTS=4;  # THIS IS THE LIMIT OF LOOPS THAT PROGRAM MUST DO TO TRY TO STABLISH COMMUNICATION BEFORE RAISE AN ERROR 
 
 AVAILABLE = True;  # THIS IS THE FLAG TO DETERMINE UNAVAILABLE STATE;
 
@@ -116,9 +116,9 @@ def receiveBoardInfo():
     
     try:
         ser.open()
-        ser.write(chr(BOARD_INFO))
+        ser.write(BOARD_INFO)
         answer_sending = ser.read(1)
-        while(answer_sending!=chr(BOARD_INFO)):
+        while(answer_sending!=BOARD_INFO):
             ser.flush()
             AVAILABLE=False
             ++attempt_counter
@@ -144,13 +144,13 @@ def receiveBoardInfo():
                 boardInfoMCU = ser.readline()
                 boardDictionary = dict([('Type', boardInfoType),('Make', boardInfoMake),('Model', boardInfoModel),('MCU', boardInfoMCU)])
                 answer_sending=ser.read(1)
-                if(answer_sending!=chr(END)):
+                if(answer_sending!=END):
                     ser.flush()
                     ser.close()
                     ++attempt_counter
                     sendBoardInfo()
                 else:
-                    ser.write(chr(RECEIVED))            
+                    ser.write(RECEIVED)            
         except:
                 ser.flush()
                 ser.close()
@@ -186,7 +186,7 @@ def counterBitON(data):
 attempt_counter=0
 
 def receiveData():
-    global attempt_counter
+    global attempt_counter, COM_ATTEMPTS, PORTD, DDRD, PORTC, DDRC, PORTB, DDRB, arrayRead, pwmData, servoData, pwmRegisterB, pwmRegisterC, pwmRegisterD, servoRegisterB, servoRegisterC, servoRegisterD
     counter=0;
     receivedRawString= dict()
     receivedPWM = dict()
@@ -211,6 +211,7 @@ def receiveData():
     bufferDDRC=0
     bufferPortD=0
     bufferDDRD=0
+    bufferpwmRegisterB=0
     bufferpwmRegisterC=0
     bufferpwmRegisterD=0
     bufferservoRegisterB=0
@@ -221,53 +222,72 @@ def receiveData():
     counterRegisterServo=0
 
     try:
+        print("try")
         ser.open()
-        ser.write(chr(SEND_STATUS))
-        while(ser.read(1)!=chr(SEND_STATUS)):
+        print(f'{(attempt_counter>COM_ATTEMPTS)}')
+        if (attempt_counter>COM_ATTEMPTS):
+                print("exit try")
+                sleep(5)
+                ser.close()
+                return -1
+                print("after return")
+        print("after open")
+        attempt_counter= attempt_counter +1 
+        ser.write(SEND_STATUS)
+        print("attempt:" + f'{attempt_counter}')
+        print("COM_:" + f'{COM_ATTEMPTS}')      
+        print("after write")
+        if((ser.read(1)!=SEND_STATUS)& (attempt_counter<=COM_ATTEMPTS)):
             AVAILABLE=False            
-            ++attempt_counter
-            ser.flush()
             ser.close()
             receiveData()
-            if (attempt_counter>COM_ATTEMPTS):
-                ser.close()
-                attempt_counter=0
-                return None
+            return -1            
     except:
+        print("except")
+        attempt_counter= attempt_counter + 1 
+        ser.close()
+        print("except after close ")
         if (attempt_counter<COM_ATTEMPTS):
             AVAILABLE=False
-            ++attempt_counter
-            ser.flush()
-            ser.close()
+            print("counter: " + f'{attempt_counter}')
             receiveData()
-        else:
-            ser.close()
-            attempt_counter=0
-            AVAILABLE=False
-            return None
+            return -1
+        print("else")
+        AVAILABLE=False
+        return -1
+        
     else:
         AVAILABLE=True
-
+        
+    if (attempt_counter>COM_ATTEMPTS):
+            print("exit finally")
+            sleep(5)
+            attempt_counter=0
+            return -1
+            
+    
     if (AVAILABLE):
         while(AVAILABLE):
             try:
                 receivedRawString[f'{counter}']=ser.read(1)
                 if(counter > 0):
-                    if(receivedRawString[f'{counter}']==chr(END) & receivedRawString[f'{counter-1}']==chr(CHRNULL)):
+                    if(receivedRawString[f'{counter}']==END & receivedRawString[f'{counter-1}']==CHRNULL):
                           counter=0
                           break  
-                ++counter
+                counter = counter + 1
             except:
                 AVAILABLE=False
                 ser.close()
                 receiveData()
+                return -1
 
-        if (receivedRawString[f'12']!=chr(IS_ANALOG_READ)):
+        if (receivedRawString[f'12']!=IS_ANALOG_READ):
             ser.flush()
-            ser.write(chr(RESEND))
+            ser.write(RESEND)
             ser.close()
-            ++attempt_counter
+            attempt_counter= attempt_counter + 1 
             receiveData()
+            return -1
                 
         bufferPortD= receivedRawString[f'0']
         bufferDDRD= receivedRawString[f'1']
@@ -293,17 +313,17 @@ def receiveData():
         doneReadPWM = False
     
         for i in range(12,76):
-            if (doneReadArrayRead!=True & (receivedRawString[f'{i+2}']==chr(IS_PWM) & receivedRawString[f'{i+1}']==chr(CHRNULL))!=True):
+            if (doneReadArrayRead!=True & (receivedRawString[f'{i+2}']==IS_PWM & receivedRawString[f'{i+1}']==CHRNULL)!=True):
                     receivedArrayRead[f'{counterArrayRead}'] = receivedRawString[f'{i}']
                     ++counterArrayRead
             else:
                 doneReadArrayRead = True
-                if ( doneReadPWM!=True & (receivedRawString[f'{i+2}']==chr(IS_SERVO) & receivedRawString[f'{i+1}']==chr(CHRNULL))!=True):
+                if ( doneReadPWM!=True & (receivedRawString[f'{i+2}']==IS_SERVO & receivedRawString[f'{i+1}']==CHRNULL)!=True):
                     receivedPWM[f'{counterPWM}'] = receivedRawString[f'{i}']
                     ++counterPWM
                 else:
                     doneReadPWM=True
-                    if((receivedRawString[f'{i+2}']==chr(END) & receivedRawString[f'{i+1}']==chr(CHRNULL))!=True):
+                    if((receivedRawString[f'{i+2}']== END & receivedRawString[f'{i+1}']== CHRNULL)!=True):
                         receivedServo[f'{counterServo}'] = receivedRawString[f'{i}']
                         ++counterServo
                     else:
@@ -312,20 +332,22 @@ def receiveData():
         if (counterArrayRead!=counterDDRDArrayRead | counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo):
             try:
                 ser.flush()
-                ser.write(chr(RESEND))
+                ser.write(RESEND)
                 ser.close()
                 AVAILABLE=False
-                ++attempt_counter
+                attempt_counter= attempt_counter + 1
                 receiveData()
+                return -1
 
             except:
                 AVAILABLE=False
-                ++attempt_counter
+                attempt_counter = attempt_counter + 1
                 ser.close
                 receiveData()
+                return -1
 
-        sendChar(RECEIVED);
-        flush();
+        ser.write(RECEIVED)
+        ser.flush()
         ser.close()
         attempt_counter=0
 
@@ -335,6 +357,14 @@ def receiveData():
         DDRC = bufferDDRC
         PORTB = bufferPortB
         DDRB = bufferDDRB
+        pwmRegisterB = bufferpwmRegisterB
+        pwmRegisterC = bufferpwmRegisterC
+        pwmRegisterD = bufferpwmRegisterD
+        servoRegisterB = bufferservoRegisterB
+        servoRegisterC = bufferservoRegisterC
+        servoRegisterD = bufferservoRegisterD
+
+        
 
         placercounter=0
 
@@ -394,11 +424,11 @@ def sendBoardUpdate():
 
     try:
         ser.open()
-        ser.write(chr(PC_REGISTERS_UPDATE))
+        ser.write(PC_REGISTERS_UPDATE)
         resivedAction=ser.read(1)
-        while (receivedAction==chr(WAIT)):
+        while (receivedAction==WAIT):
             pass
-        while (receivedAction!=chr(PC_REGISTERS_UPDATE)):
+        while (receivedAction!=PC_REGISTERS_UPDATE):
             ser.flush()
             ++attempt_counter
             sendBoardUpdate()
@@ -416,29 +446,29 @@ def sendBoardUpdate():
         
             if( PORTD != prevPortD):
 
-                ser.write(chr(PORTD))
-                ser.write(chr(DDRD))
-                ser.write(chr(pwmRegisterD))
-                ser.write(chr(servoRegisterD))
+                ser.write(PORTD)
+                ser.write(DDRD)
+                ser.write(pwmRegisterD)
+                ser.write(servoRegisterD)
     
             if( PORTC != prevPortC):
     
-                ser.write(chr(PORTC))
-                ser.write(chr(DDRC))
-                ser.write(chr(pwmRegisterC))
-                ser.write(chr(servoRegisterC))
+                ser.write(PORTC)
+                ser.write(DDRC)
+                ser.write(pwmRegisterC)
+                ser.write(servoRegisterC)
     
 
             if( PORTB != prevPortB):
 
-                ser.write(chr(PORTB))
-                ser.write(chr(DDRB))
-                ser.write(chr(pwmRegisterB))
-                ser.write(chr(servoRegisterB))      
+                ser.write(PORTB)
+                ser.write(DDRB)
+                ser.write(pwmRegisterB)
+                ser.write(servoRegisterB)      
     
 # SEND PWM INFO
-            ser.write(chr(CHRNULL))
-            ser.write(chr(IS_PWM))
+            ser.write(CHRNULL)
+            ser.write(IS_PWM)
 
             if (pwmData != prevpwmData):
                 for i in range(ROW):
@@ -447,17 +477,17 @@ def sendBoardUpdate():
                             ser.write(chr(pwmData[f'{i}']));
 
 # SEND SERVO INFO
-            ser.write(chr(CHRNULL))                
-            sendChar(IS_SERVO);
+            ser.write(CHRNULL)                
+            ser.write(IS_SERVO)
 
             if (servoData != prevservoData):
                 for i in range(8):
                     if (servoData[f'{i}']!= 0): 
                         if (servoData[f'{i}']!= prevservoData[f'{i}']):
-                            ser.write(chr(servoData[f'{i}']))
+                            ser.write(servoData[f'{i}'])
 
-            ser.write(chr(CHRNULL))
-            ser.write(chr(END))
+            ser.write(CHRNULL)
+            ser.write(END)
 
 # ASK RECEIVED FROM ARDUIND
     
@@ -671,6 +701,7 @@ menubar.add_cascade(menu=menu_plot, label='Plot')
 menubar.add_cascade(menu=menu_port, label='Port')
 menubar.add_cascade(menu=menu_help, label='Help')
 
+
 # Make default filename with day and year and program identifier
 
 secs = time.time()
@@ -712,62 +743,37 @@ def scanPort():
     global port, screenWidth, screenHeight
     pass
 
-def setPort():
-    global arduinoPort
-    portlist = serial.tools.list_ports.comports()
-
-    portArray = []
-    radioports = []
-    for d in portlist:
-        if d.name:
-            stringdevice = str(d.name)
-            portArray.append(stringdevice)
-
-    win = Toplevel(root)
-
-    title= 'Port available in device'
-    rootSizerWidth= int(screenWidth*0.2)
-    rootSizerHeight= int(screenHeight*0.25)
-    topLeftPosition=(int((screenWidth- rootSizerWidth)/2),int((screenHeight- rootSizerHeight)/2))
-    win.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
-    win.transient(root)
-
-    for i in range(len(portArray)):
-        portset= portArray[i]
-        radioports.append(ttk.Radiobutton(win, text= portset, variable= arduinoPort, value = portset ).pack())
-    
-    def finish():
-        win.destroy()
-        
-    button= ttk.Button(win, text="OK", command= finish).pack()   
-    
-
-
-
 menu_file.add_command(label='New', command=newFile)
 menu_file.add_command(label='Open', command=openFile)
 menu_file.add_command(label='Save as', command=saveasFile)
 menu_file.add_command(label='Close', command=closeFile)
 menu_file.add_command(label='File directory', command=dirFile)
 menu_port.add_command(label='Scan Port', command=scanPort)
-menu_port.add_command(label='Set Port', command=setPort)
+
+portlist = serial.tools.list_ports.comports()
+portArray = []
+radioports = []
+for d in portlist:
+    if d.name:
+        stringdevice = str(d.name)
+        portArray.append(stringdevice)
+
+menu_set = Menu(menu_port)
+menu_port.add_cascade(menu=menu_set, label='Set port')
+portVar= StringVar()
+
+for i in range(len(portArray)):
+    portset= portArray[i]
+    menu_set.add_radiobutton(label=portset, variable=portVar, value=portset)
 
 
 root['menu']= menubar
 
-# Binds to check ARDUINO STATUS in any loop
-# at the end with a flag because slow plenty the program the check
-# the counter is to make check after some loops
-# root.bind('<Activate>',receiveData())
-# root.bind('<Deactivate>',receiveData())
-# root.bind('<Visibility>',receiveData())
-# HAVE THE THREE BECAUSE PROGRAM WILL APPEND PIN STATUS EACH 30 MIN TO A FILE
-# AND PLOT IT CAN SET TIME STEP AND WILL PLOT CHARGE STATUS FOR EACH DEVICE
-# LIGHT STATUS AND CAN BE DETERMINED CALCULATED CURRENT WITH MOSFETS VOLTS AND
-# TEMPERATURE IN FUTURE UPGRADES
+# To check ARDUINO STATUS in any loop slow plenty the program
+# so at the end of the program have a time defined funtion 
+# to receive data:
+# root.after(100, eventTimeFunction) at the end
 
-counter_availability=0
-COUNTER_LIMIT=50   # This can be changed according usage
 
 mainFrame = ttk.Frame(root, padding ="3 3 12 12")
 
@@ -2198,24 +2204,31 @@ for child in mainFrame.winfo_children():
 
 # CUSTOM EVENT TO HANDLE DATA WITH ARDUINO WITH TIME (REQUEST DATA EACH 5 MINUTES, SAVE EACH 15 MINUTES) AND IDLE OPTION (AFTER ALL WIDGET WORKS ARE FINISHED CAN BE CHAGED FOR LESS TIME 
 
-starttimer = time.perf_counter()  # this will make a counter with next call in seconds
-
+starttimerData = time.perf_counter()  # this will make a counter with next call in seconds
+starttimerSave = time.perf_counter()
 
 def eventTimeFunction():
-    global starttimer
+    global starttimerData, starttimerSave, arduinoPort
     print("event called")
-    print(starttimer)
+    print(starttimerData)
+    if(len(portVar.get())>0):
+        arduinoPort = portVar.get()
+    print("selectedport = " + arduinoPort)
     nexttimer = time.perf_counter()
-    elapsedtime =  nexttimer - starttimer
-    if int(elapsedtime) >> (5*60):
+    elapsedtimeData =  nexttimer - starttimerData
+    elapsedtimeSave =   nexttimer - starttimerSave
+    print(elapsedtimeData)
+    if ((int(elapsedtimeData*1000)) > (int(0.5*60)*1000)):  # * 1000 to improve precision
+        print("ready if 1")
         root.after_idle(receiveData)
-        if int(elapsedtime) >> (15*60):
+        starttimerData = time.perf_counter()
+        if (int(elapsedtimeSave*1000) > ((1*60)*1000)):
             secs = time.time()
             timehere= time.localtime(secs)
             timestamp= f'{timehere.tm_year}{timehere.tm_mon}{timehere.tm_mday}{timehere.tm_hour}{timehere.tm_min}'
             print(timestamp)
             pass  # here will be file data WRITE FILE append first time  stamp next line each 3 voltage readings if not open open, 'a' etc 
-            starttimer = time.perf_counter()
+            starttimerSave = time.perf_counter()
     root.after((200), eventTimeFunction)
             
 root.update()
