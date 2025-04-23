@@ -2,6 +2,7 @@
 
 ##Program to control arduino Nano board with the ChargersController.ino
 #autor: Dario Lobos 17/mar/2025
+# Theme from https://github.com/israel-dryer/ttkbootstrap?tab=readme-ov-file
 
 import Tkinter
 import PIL
@@ -16,6 +17,7 @@ import serial.tools.list_ports
 import re
 import time
 from time import sleep
+import ttkbootstrap as ttk
 
 # Define port type
 arduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
@@ -669,7 +671,9 @@ entryDDRD=DDRD
 
 # Define main widget environment dimensions
 
-root = Tk()
+root = ttk.Window(themename="vapor")
+# root.tk.call('TkinterModernThemes', 'require', 'azure.tcl')
+
 root.title("Program to remote control Battery charger and Handle data")
 root.minsize(300,300)
 screenWidth = root.winfo_screenwidth()
@@ -684,7 +688,6 @@ topLeftPosition=(int((screenWidth- rootSizerWidth)/2),int((screenHeight- rootSiz
 
 root.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
 
-root.configure( background ='DeepSkyBlue2')
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
 
