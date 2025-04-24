@@ -672,7 +672,7 @@ entryDDRD=DDRD
 # Define main widget environment dimensions
 
 root = ttk.Window(themename="vapor")
-# root.tk.call('TkinterModernThemes', 'require', 'azure.tcl')
+#root = Tk()
 
 root.title("Program to remote control Battery charger and Handle data")
 root.minsize(300,300)
@@ -720,11 +720,8 @@ try:
         os.makedirs(initial_directory)
 except:
     messagebox.showwarning(title='Make the default file not allowed', message="Defaul directory for reports save is not allowed, please verify program permissions")
-
-
-def newFile():
-    global filename
-    filename = filedialog.asksaveasfilename(initialdir= initial_directory, initialfile = filename , title = "Select file, for best choose default, same extension",filetypes = (("charge files","*.chtx"),("all files","*.*")))
+finally:
+    pass
 
 def openFile():
     global filename
@@ -746,7 +743,6 @@ def scanPort():
     global port, screenWidth, screenHeight
     pass
 
-menu_file.add_command(label='New', command=newFile)
 menu_file.add_command(label='Open', command=openFile)
 menu_file.add_command(label='Save as', command=saveasFile)
 menu_file.add_command(label='Close', command=closeFile)
@@ -765,9 +761,14 @@ menu_set = Menu(menu_port)
 menu_port.add_cascade(menu=menu_set, label='Set port')
 portVar= StringVar()
 
+def stringPortFormat():
+    global arduinoPort, portVar
+    if(len(portVar.get())>0):
+        arduinoPort= portVar.get()
+
 for i in range(len(portArray)):
     portset= portArray[i]
-    menu_set.add_radiobutton(label=portset, variable=portVar, value=portset)
+    menu_set.add_radiobutton(label=portset, variable=portVar, value=portset, command= stringPortFormat)
 
 
 root['menu']= menubar
@@ -1183,7 +1184,14 @@ ttk.Label(mainFrame, text= "Mode of Pins").grid(column=1,row=2)
 ttk.Label(mainFrame, text= "Current value").grid(column=2,row=2)
 ttk.Label(mainFrame, text= "Value to update").grid(column=3,row=2)
 ttk.Label(mainFrame, text= "<= To process changes and send them to the ARDUINO board  press the button").grid(column=5, row=1, sticky ="w")
-ttk.Label(mainFrame, text= "Check to update").grid(column=4, row=2, sticky ="w")
+ttk.Label(mainFrame, text= "Check to update").grid(column=4, row=2)
+
+# label for connectio status
+
+connectionText = StringVar()
+connectionText.set("")
+conectionStatus = ttk.Label(mainFrame, textvariable = connectionText, foreground='firebrick1') 
+conectionStatus.grid(column=5, row=2)
 
 #function to resize image when window size change PENDING USE FRAME INSTEAD OF LABEL
 # RESIZE WORK BUT IS TO SLOW AN MY COMPUTER STAY SOME TIME IN NOT RESPOND UNTIL REDRAW
@@ -1863,30 +1871,32 @@ def enablerPhoto():
           entryPhotoreResistorVolt.state(['disabled'])          
           chkPhotoState= BooleanVar(value= False)
     # Check buttons to change value of a ping
+s =ttk.Style()
+s.configure('Brigther.TCheckbutton', background="greenYellow", foreground ="midnightblue") 
+s.map('Brigther.TCheckbutton', foreground =[ ('disabled', 'seashell3'), ('pressed','seashell1'),('active','seashell2')], background =[ ('disabled', 'palegreen'), ('pressed','greenYellow'),('active','Springgreen2')])
 
-
-chkMosfet1= ttk.Checkbutton(mainFrame, command = enablerMos1, state= 'disabled', variable=chkMos1State, onvalue=True, offvalue=False)
+chkMosfet1= ttk.Checkbutton(mainFrame, command = enablerMos1, state= 'disabled', variable=chkMos1State, onvalue=True, offvalue=False, style = 'Brigther.TCheckbutton')
 chkMosfet1.grid(column =4, row =4)
 
-chkMosfet2= ttk.Checkbutton(mainFrame, command= enablerMos2, state= 'disabled', variable=chkMos2State, onvalue=True, offvalue=False)
+chkMosfet2= ttk.Checkbutton(mainFrame, command= enablerMos2, state= 'disabled', variable=chkMos2State, onvalue=True, offvalue=False,  style = 'Brigther.TCheckbutton')
 chkMosfet2.grid(column =4, row =6)
 
-chkMosfet3= ttk.Checkbutton(mainFrame, command= enablerMos3, state= 'disabled', variable=chkMos3State, onvalue=True, offvalue=False)
+chkMosfet3= ttk.Checkbutton(mainFrame, command= enablerMos3, state= 'disabled', variable=chkMos3State, onvalue=True, offvalue=False,style = 'Brigther.TCheckbutton')
 chkMosfet3.grid(column =4, row =8)
 
-chkBatteryVolt= ttk.Checkbutton(mainFrame, command= enablerBattery, state= 'disabled', variable=chkBatState, onvalue=True, offvalue=False)
+chkBatteryVolt= ttk.Checkbutton(mainFrame, command= enablerBattery, state= 'disabled', variable=chkBatState, onvalue=True, offvalue=False,style = 'Brigther.TCheckbutton')
 chkBatteryVolt.grid(column =4, row =10)
 
-chkTrafoVolt= ttk.Checkbutton(mainFrame,command= enablerTrafoVolt, state= 'disabled', variable=chkTrafoState,onvalue=True, offvalue=False)
+chkTrafoVolt= ttk.Checkbutton(mainFrame,command= enablerTrafoVolt, state= 'disabled', variable=chkTrafoState,onvalue=True, offvalue=False,style = 'Brigther.TCheckbutton')
 chkTrafoVolt.grid(column =4, row =12)
 
-chkSolarPanelVolt= ttk.Checkbutton(mainFrame, command=enablerSolar, state= 'disabled', variable=chkSolarState, onvalue=True, offvalue=False)
+chkSolarPanelVolt= ttk.Checkbutton(mainFrame, command=enablerSolar, state= 'disabled', variable=chkSolarState, onvalue=True, offvalue=False,style = 'Brigther.TCheckbutton')
 chkSolarPanelVolt.grid(column =4, row =14)
 
-chkWindTurbineVolt= ttk.Checkbutton(mainFrame, command=enablerWind, state= 'disabled', variable=chkWindState, onvalue=True, offvalue=False)
+chkWindTurbineVolt= ttk.Checkbutton(mainFrame, command=enablerWind, state= 'disabled', variable=chkWindState, onvalue=True, offvalue=False,style = 'Brigther.TCheckbutton')
 chkWindTurbineVolt.grid(column =4, row =16)
 
-chkPhotoreResistorVolt= ttk.Checkbutton(mainFrame, command= enablerPhoto, state= 'disabled', variable=chkPhotoState,onvalue=True, offvalue=False)
+chkPhotoreResistorVolt= ttk.Checkbutton(mainFrame, command= enablerPhoto, state= 'disabled', variable=chkPhotoState,onvalue=True, offvalue=False,style = 'Brigther.TCheckbutton')
 chkPhotoreResistorVolt.grid(column =4, row =18)
 
 # Text variable for entries, must be initialized first becaused are called by functions bellow
@@ -2201,6 +2211,8 @@ ttk.Label(mainFrame, text="History data save a day file with each charger voltag
 ttk.Label(mainFrame, text="This data can be plotted for day, week, month or year").grid(column =1,columnspan=5, row =24, sticky='w')                            
 
 
+
+
                           
 for child in mainFrame.winfo_children():
   child.grid_configure(padx=int(root.winfo_width()/150), pady=int(root.winfo_width()/150))
@@ -2210,12 +2222,24 @@ for child in mainFrame.winfo_children():
 starttimerData = time.perf_counter()  # this will make a counter with next call in seconds
 starttimerSave = time.perf_counter()
 
+
 def eventTimeFunction():
-    global starttimerData, starttimerSave, arduinoPort
+    global starttimerData, starttimerSave, arduinoPort, conectionStatus, connectionText
     print("event called")
     print(starttimerData)
-    if(len(portVar.get())>0):
-        arduinoPort = portVar.get()
+
+    def ifreceiveData():
+            global conectionStatus, connectionText
+            
+            if (receiveData()==-1):
+                connectionText.set("SERIAL CONNECTION TO ARDUINO NOT AVAILABLE, CHANGE PORT OR SCAN TO VERIFY ")
+            else:
+                secs = time.time()
+                timehere= time.localtime(secs)
+                message=f'Last Update: {timehere.tm_hour} Hours :{timehere.tm_min} min.'
+                conectionStatus.configure(foreground = 'DeepSkyBlue2')
+                conectionText.set(message)
+
     print("selectedport = " + arduinoPort)
     nexttimer = time.perf_counter()
     elapsedtimeData =  nexttimer - starttimerData
@@ -2223,7 +2247,7 @@ def eventTimeFunction():
     print(elapsedtimeData)
     if ((int(elapsedtimeData*1000)) > (int(0.5*60)*1000)):  # * 1000 to improve precision
         print("ready if 1")
-        root.after_idle(receiveData)
+        root.after_idle(ifreceiveData)
         starttimerData = time.perf_counter()
         if (int(elapsedtimeSave*1000) > ((1*60)*1000)):
             secs = time.time()
