@@ -18,6 +18,7 @@ import re
 import time
 from time import sleep
 import ttkbootstrap as ttk
+from tkinterPdfViewer import tkinterPdfViewer as pdf
 
 # Define port type
 arduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
@@ -672,7 +673,7 @@ entryDDRD=DDRD
 # Define main widget environment dimensions
 
 root = ttk.Window(themename="vapor")
-#root = Tk()
+# root = Tk()
 
 root.title("Program to remote control Battery charger and Handle data")
 root.minsize(300,300)
@@ -743,11 +744,42 @@ def scanPort():
     global port, screenWidth, screenHeight
     pass
 
+def openHelp():
+
+    global screenWidth, screenHeight
+
+    parent=root
+    title= 'PDF help'
+    # check window size to make root size
+
+    rootSizerWidth= int(screenWidth*0.8)
+    rootSizerHeight= int(screenHeight*0.8)
+
+    topLeftPosition=(int((screenWidth- rootSizerWidth)/2),int((screenHeight- rootSizerHeight)/2))
+    top=Toplevel(parent)
+    top.geometry(f'{rootSizerWidth}x{rootSizerHeight}+{topLeftPosition[0]}+{topLeftPosition[1]}')
+    top.transient(parent)
+    top.title(title)
+    topframe=Frame(top)
+
+    def close():
+        top.destroy()
+        
+    button = ttk.Button(topframe, text="Close", command = close)
+    button.pack()
+    pdf_Charger = pdf.ShowPdf().pdf_view(topframe, pdf_location=r"ChargerHelp.pdf", width = int(screenWidth*0.8), height = int(screenHeight*0.6))
+
+    pdf_Charger.pack()
+    
+    topframe.pack()
+    
+
 menu_file.add_command(label='Open', command=openFile)
 menu_file.add_command(label='Save as', command=saveasFile)
 menu_file.add_command(label='Close', command=closeFile)
 menu_file.add_command(label='File directory', command=dirFile)
 menu_port.add_command(label='Scan Port', command=scanPort)
+menu_help.add_command(label='Open Help', command=openHelp)
 
 portlist = serial.tools.list_ports.comports()
 portArray = []
