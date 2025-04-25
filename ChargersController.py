@@ -109,35 +109,42 @@ for i in range (8):
     prevservoData[f'{i}']=0  # ARRAY TO STORE PREVIOS SERVO DATA
 
 attempt_counter=0
-def receiveBoardInfo():
+def receiveBoardInfo(serialscan):
+    print("BoardInfo")
     global attempt_counter    
+
     if (attempt_counter>COM_ATTEMPTS):
         AVAILABLE=False
-        ser.close()
+        serialscan.close()
         attempt_counter=0
         return None
     
     try:
-        ser.open()
-        ser.write(BOARD_INFO)
+        print("Try")
+        serialscan.open()
+        serialscan.write(BOARD_INFO)
         answer_sending = ser.read(1)
         while(answer_sending!=BOARD_INFO):
-            ser.flush()
             AVAILABLE=False
-            ++attempt_counter
-            ser.close()
-            receiveBoardInfo()
-            
+            attempt_counter= attempt_counter +1
+            serialscan.close()
+            receiveBoardInfo(serialscan)
+            return None
     except:
+        print("execpt")
         AVAILABLE=False
-        ++attempt_counter
-        ser.flush()
-        ser.close()
-        receiveBoardInfo()
-        
+        attempt_counter= attempt_counter +1  
+        serialscan.close()
+        receiveBoardInfo(serialscan)
+        return None
     else:
         AVAILABLE=True
 
+    if (attempt_counter>COM_ATTEMPTS):
+            print("exit finally")
+            attempt_counter=0
+            return None
+    
 
     if (AVAILABLE):
         try:
@@ -148,20 +155,19 @@ def receiveBoardInfo():
                 boardDictionary = dict([('Type', boardInfoType),('Make', boardInfoMake),('Model', boardInfoModel),('MCU', boardInfoMCU)])
                 answer_sending=ser.read(1)
                 if(answer_sending!=END):
-                    ser.flush()
-                    ser.close()
-                    ++attempt_counter
+                    serialscan.close()
+                    attempt_counter= attempt_counter +1
                     sendBoardInfo()
+                    return None
                 else:
-                    ser.write(RECEIVED)            
+                    serialscan.write(RECEIVED)            
         except:
-                ser.flush()
-                ser.close()
-                ++attempt_counter
-                sendBoardInfo()
+                serialscan.close()
+                attempt_counter= attempt_counter +1
+                receiveBoardInfo(serialscan)
+                return None
         else:
-            ser.flush()
-            ser.close()
+            serialscan.close()
             return  boardDictionary 
         
 
@@ -230,7 +236,6 @@ def receiveData():
         print(f'{(attempt_counter>COM_ATTEMPTS)}')
         if (attempt_counter>COM_ATTEMPTS):
                 print("exit try")
-                sleep(5)
                 ser.close()
                 return -1
                 print("after return")
@@ -260,11 +265,10 @@ def receiveData():
         return -1
         
     else:
-        AVAILABLE=True
+        AVAILABLE=True        
         
     if (attempt_counter>COM_ATTEMPTS):
             print("exit finally")
-            sleep(5)
             attempt_counter=0
             return -1
             
@@ -418,13 +422,14 @@ def receiveData():
 
 attempt_counter=0
 def sendBoardUpdate():
+    print("BoardUpdate")
     global attempt_counter
     if (attempt_counter>COM_ATTEMPTS):
         ser.close()
         attempt_counter=0
         AVAILABLE=False
         return None
-
+        print("Comattempt")
     try:
         ser.open()
         ser.write(PC_REGISTERS_UPDATE)
@@ -435,13 +440,21 @@ def sendBoardUpdate():
             ser.flush()
             ++attempt_counter
             sendBoardUpdate()
-            
+            return None
     except:
+            p
             ser.flush()
             ++attempt_counter
-            sendBoardUpdate()            
+            sendBoardUpdate()
+            return None
     else:
         AVAILABLE=True
+
+    if (attempt_counter>COM_ATTEMPTS):
+        print("exit finally")
+        attempt_counter=0
+        return None
+
 
     if (AVAILABLE):    
         try:
@@ -527,6 +540,7 @@ def sendBoardUpdate():
         prevArrayRead = arrayRead;
         prevpwmData = pwmData;
         prevservoData = servoData; 
+    return 1
 
 # Define analog ports as in pins_arduino.h 
 # define PIN_A0   (14)
@@ -739,11 +753,29 @@ def closeFile():
 def dirFile():
     global dirname
     initial_directory = filedialog.askdirectory(initialdir=initial_directory)
-    
-def scanPort():
-    global port, screenWidth, screenHeight
-    pass
 
+
+arduinoLabel=StringVar() # String label for board detected
+def scanPort():
+    global ser, arduinoPort, arduinoLabel
+
+    ser.close()
+    arduinoDict = dict()
+    portlist = serial.tools.list_ports.comports()
+
+    for d in portlist:
+        if d.name:
+            stringdevice = str(d.name)
+            serialScan =serial.Serial(port=stringdevice,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+            arduinoDict = receiveBoardInfo(serialScan)
+            if arduinoDict is not None:
+                arduinoPort = stringdevice
+                portVar.set(arduinoPort)
+                arduinoLabel.set(f'Port detected= {arduinoPort} , Board Info: Type = {arduinoDict["Tyoe"]}, Make = {arduinoDict["Make"]}, Model = {arduinoDict["MODEL"]}, MCU = {arduinoDict["MCU"]}')
+                ser =serial.Serial(port=stringdevice,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+                break
+            else:
+                arduinoLabel.set("BOARD NOT DETECTED, CHECK CONNECTION")
 def openHelp():
 
     global screenWidth, screenHeight
@@ -761,18 +793,16 @@ def openHelp():
     top.transient(parent)
     top.title(title)
     topframe=Frame(top)
-
     def close():
         top.destroy()
         
     button = ttk.Button(topframe, text="Close", command = close)
     button.pack()
-    pdf_Charger = pdf.ShowPdf().pdf_view(topframe, pdf_location=r"ChargerHelp.pdf", width = int(screenWidth*0.8), height = int(screenHeight*0.6))
 
+    pdf_Charger = pdf.ShowPdf().pdf_view(topframe, pdf_location=r"ChargerHelp.pdf", width = int(screenWidth*0.8), height = int(screenHeight*0.8))
     pdf_Charger.pack()
-    
+
     topframe.pack()
-    
 
 menu_file.add_command(label='Open', command=openFile)
 menu_file.add_command(label='Save as', command=saveasFile)
@@ -799,6 +829,7 @@ def stringPortFormat():
         arduinoPort= portVar.get()
 
 for i in range(len(portArray)):
+    portVar.set(arduinoPort)
     portset= portArray[i]
     menu_set.add_radiobutton(label=portset, variable=portVar, value=portset, command= stringPortFormat)
 
@@ -2231,6 +2262,15 @@ ttk.Label(mainFrame, text="Historical data reporting:").grid(column =1, row =19,
 ttk.Button(mainFrame, text="Plot").grid(column =2, row =20)
 ttk.Button(mainFrame, text="Print").grid(column =3, row =20)
 
+# Label for detected Board
+
+boardDetected = ttk.Label(mainFrame, textvariable = arduinoLabel,foreground = "lightseagreen")
+boardDetected.grid(column =5, row =20, sticky='w')  
+
+arduinoLabel
+
+
+
 # pending sample data appand on file and plot and print and eventually erase file
 def onPressPlot():
   pass
@@ -2279,7 +2319,8 @@ def eventTimeFunction():
     print(elapsedtimeData)
     if ((int(elapsedtimeData*1000)) > (int(0.5*60)*1000)):  # * 1000 to improve precision
         print("ready if 1")
-        root.after_idle(ifreceiveData)
+        #root.after_idle(ifreceiveData)
+        ifreceiveData()
         starttimerData = time.perf_counter()
         if (int(elapsedtimeSave*1000) > ((1*60)*1000)):
             secs = time.time()
@@ -2290,7 +2331,6 @@ def eventTimeFunction():
             starttimerSave = time.perf_counter()
     root.after((200), eventTimeFunction)
             
-root.update()
 root.after(100, eventTimeFunction)
 
 root.bind('<Configure>',boardResize)
