@@ -20,15 +20,76 @@ from time import sleep
 import ttkbootstrap as ttk
 from tkinterPdfViewer import tkinterPdfViewer as pdf
 
-# Define port type
-arduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
+# Define analog ports as in pins_arduino.h 
+# define PIN_A0   (14)
+# define PIN_A1   (15)
+# define PIN_A2   (16)
+# define PIN_A3   (17)
+# define PIN_A4   (18)
+# define PIN_A5   (19)
+# define PIN_A6   (20)
+# define PIN_A7   (21)
 
-#_____________________________________________________________________#
-#                                                                     #
-#                           SERIAL PROTOCOL                           #
-#_____________________________________________________________________#
-#
-ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+A0= 14
+A1= 15
+A2= 16
+A3= 17
+A4= 18
+A5= 19
+A6= 20
+A7= 21
+
+#ARDUINO PORTS IN ARDUINO PROGRAM .INO
+# const int PC_CONTROL_PIN= 6
+# const int mosfet_1_pin = A6 ;
+# const int mosfet_2_pin = 9 ; // digital pin can be written as analog
+# const int mosfet_3_pin = 10 ;  // digital pin can be written as analog
+# const int battery_voltage_pin= A3 ;
+# const int device_charger_voltage_1 = A0 ;
+# const int device_charger_voltage_2 = A1 ;  
+# const int device_charger_voltage_3 = A2 ;  
+# const int photo_resistor = A7 ;
+
+#_______________________________________________________________________
+# TAKING THE SAME NAMES                                                 #
+# !!!! IMPORTANT THING !!!!!  THIS VARIABLE CONTROL PINS IN ALL CODE    #
+# LATER IN A WINDOW MENU CAN BE CHANGE AS SET UP. ARDUINO .INO          #
+# MUST BE CHANGED IN CODE OR LCD MENU IN CONCORDANCE WITH THIS SETUP    #
+#_______________________________________________________________________#
+
+PC_CONTROL_PIN= 6
+mosfet_1_pin = A6
+mosfet_2_pin = 9
+mosfet_3_pin = 10
+battery_voltage_pin= A3
+device_charger_voltage_1 = A0
+device_charger_voltage_2 = A1
+device_charger_voltage_3 = A2   
+photo_resistor = A7 
+
+ROW=22 # LENGHT OF ARRAY OF DIGITAL READ
+
+# BITWISE FUNCTIONS TO HANDLE REGISTERS
+# IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
+
+def setBit( n, pos):
+        n|=( 1<< pos )
+        return n
+
+def unsetBit( n, pos):
+        n&=~( 1<< pos )
+        return n
+
+def bitON( n, pos):
+        return ( n & (1<<pos)!=0)
+
+
+def counterBitON(data):
+  count=0;
+  while(data>0):
+      data &= (data-1) 
+      count+=count
+  return count  
 
 # THESE ARE THE VARIABLES USED TO STORE ARDUINO STATUS RECEIVED AND ALSO
 # TO MODIFIED AND SEND THEM BACK TO CHANGE ARDUINO CONFIGURATION
@@ -42,43 +103,221 @@ DDRB=0
 DDRC=0
 DDRD=0
 
-
-
-SEND_STATUS=17; # THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
-RECEIVED=23;  # THIS IS THE IDENTIFIER FOR SEND OF DATA
-
-IS_ANALOG_READ = 28
-
-ROW=22
+# ANALOG PINS ARE IN PORT C, PORT B IS 8 TO 13 FIST TWO PINS OF PORT ARE
+# RESERVED TO SERIAL 0 RX 1 TX MUST NOT BE CHANGED, PORT D IS 0 TO 7
 
 arrayRead = dict()
 for i in range (8):
     for v in range (2):
         arrayRead[f'{i}{v}']=0 # ARRAY TO STORE ANALOG READ 1=HIGH 0=LOW BYTE
-IS_PWM= 18
+
 pwmRegisterB = 0
 pwmRegisterC = 0
 pwmRegisterD = 0
 
 pwmData= dict()
-for i in range (8):
+for i in range (ROW):
     pwmData[f'{i}']=0  # ARRAY TO STORE PWM DATA
     
-IS_SERVO= 20
-
 servoRegisterB = 0 # REGISTERS TO IDENTIFY EACH SERVO PIN
 servoRegisterC = 0
 servoRegisterD = 0
 
 servoData = dict()
-for i in range (8):
+for i in range (ROW):
     servoData[f'{i}']=0 # ARRAY TO STORE SERVO DATA
 
+# FIRST ASIGMENT  OF PORT BEFORE SERIAL CONNECTION TO ARDUINO ACCORDING ARDUINO PROGRAM
+# DDRn = PIN MODE 0 INPUT / PORTn = HIGH OR LOW DDRn 1 AND PORTn 1 INPUT PULLUP RESISTOR FOR CONNECTION NOT GROUNDED 
+
+DDRD= setBit(DDRD,PC_CONTROL_PIN)
+DDRC= setBit(DDRC,mosfet_1_pin-14) # 14 for arduino is 0 port C in chip
+DDRB= setBit(DDRB,mosfet_2_pin-6) # 0,1 reserved 2 in PORTB will be 8 in arduino
+DDRB= setBit(DDRB,mosfet_3_pin-6)
+
+# FIRT ASSIGMENT OF REGISTER BEFORE CONNECTION
+
+def registerFirstset(mode, pin):
+    global pwmRegisterC, pwmRegisterB, pwmRegisterD, servoRegisterC, servoRegisterB, servoRegisterD 
+    if (mode=="PWM"):
+        if (pin>13):
+            pwmRegisterC= setBit(pwmRegisterC, pin-14)
+        elif (pin>7):
+            pwmRegisterB= setBit(pwmRegisterB, pin-6)            
+        elif (pin<8):
+            pwmRegisterD= setBit(pwmRegisterD, pin)
+    if (mode=="Servo"):
+        if (pin>13):
+            registerServo= setBit(servoRegisterC, pin-14)
+        elif (pin>7):
+            registerServo= setBit(servoRegisterB, pin-6)            
+        elif (pin<8):
+            registerServo= setBit(servoRegisterD, pin)
+
+registerFirstset("PWM",mosfet_1_pin)
+registerFirstset("PWM",mosfet_2_pin)
+registerFirstset("PWM",mosfet_3_pin)
+
+# TO SET DIGITAL PINS CAN BE USED DIRECT PINBx WHICH WILL BECOME OUTPUT
+# INDEPENDENT OF DDR. I PREFER USE THIS TO AVOID PROBLEMS WITH ANALOG
+
+prevpwmData= dict()
+prevservoData = dict()             
+for i in range (ROW):
+    prevpwmData[f'{i}']=0  # ARRAY TO STORE PREVIOS PWM DATA
+    prevservoData[f'{i}']=0  # ARRAY TO STORE PREVIOS SERVO DATA
+
+# REST OF PINS ARE INPUT AND DONT NEED PULL UP SINCE HAVE CAPACITORS AND GROUND RESISTORS 
+
+# IN CONCORDANCE WITH ARDUINO CODE MUST BE MODIFIED TOGETHER IF NECESSARY
+# THIS IS THE ARDUINO CODE             
+# const int PHOTO_PRESISTOR_LIMIT = 512; // VALUE MUST BE TESTED AND DETERMINE THE SOLAR PANNEL SWITCH OFF.  
+# int photo_resistor_READ=0;
+# const float BAT_FULL_VOLTS = 13.7;             
+# float batteryState = 0;
+# const float BAT_LOW_VOLTS = 12.5 ;
+
+# const float VOLTAGE_DIVIDER_R_TOP = 5.5 ;          // THESE ARE THE VOLTAGE DIVIDER RESISTANCE TO SEND VOLTAGE BATTERY TO
+# const float VOLTAGE_DIVIDER_R_GROUND = 12;          // THE ANALOG PIN DIRECTLY
+
+# const float VOLT_FACTOR = VOLTAGE_DIVIDER_R_GROUND/ (VOLTAGE_DIVIDER_R_GROUND + VOLTAGE_DIVIDER_R_TOP);
+# const float ANALOG_VOLTS = 5 / 1023 ;
+
+# const float CHARGER_VOLTS_1 = 16;  // THIS IS THE TRANSFORMER, SOLAR PANEL, OR OTHER DEVICE VOLTAGE. I HAVE ONLY ONE BUT LEAVE FOR 3
+# const float CHARGER_VOLTS_2 = 16;
+# const float CHARGER_VOLTS_3 = 16;
+
+
+# const float VOLTS_FACTOR_IN_OP = 1 ;  // THIS IS A FACTOR TO AMPLIFY THE SIGNAL FROM THE OP. AMPLIFIER 
+#                                       // WITH IT CAN BE MODIFIED MOSFET GATE VOLTAGE TO HAVE MORE OR LESS CURRENT .
+#                                       // WITHOUT CHANGE THE CIRCUIT.
+# // Function to transform analog read to voltage according constant voltage divider
+
+# SHOULD BE THE INVERSE TO THIS AND CURRENT VALUE THE SAME
+             
+# float analogVoltageConvertion(int read , float voltFactor)
+# {
+#  float voltage=0;
+# voltage = read * ANALOG_VOLTS * voltFactor ;
+# return voltage;
+
+VOLTAGE_DIVIDER_R_TOP = 5.5
+VOLTAGE_DIVIDER_R_GROUND = 12      
+VOLT_FACTOR = VOLTAGE_DIVIDER_R_GROUND/ (VOLTAGE_DIVIDER_R_GROUND + VOLTAGE_DIVIDER_R_TOP)
+VOLTS_FACTOR_IN_OP = 1    # THIS CAN BE SLIGHTLY CHANGED TO CORRECT CIRCUIT TOLERANCE ERRORS THEN APPLY IT TO THE ARDUINO PROGRAM
+ANALOG_VOLTS = 5 / 1023
+PWM_VOLTS = 5/255
+SERVO_VOLTS = 5/180
+
+def convertionToWritePWM(entryValue):
+
+  float_entryValue= float(entryValue)
+  writeValue= int(float_entryValue*PWM_VOLTS)
+  return writeValue
+
+def convertionToWriteServo(entryValue):
+
+  float_entryValue= float(entryValue)
+  writeValue= int(float_entryValue*SERVO_VOLTS)
+  return writeValue
+
+
+def convertionReadToVolts(pin):
+
+
+    global arrayRead, PORTB, PORTD, PORTC, DDRB, DDRC, DDRD
+
+    if (pin>14):
+        if not bitON(DDRC, pin-14):
+            if (arrayRead[f'{pin-14}0']!=0 | arrayRead[f'{pin-14}1']!=0):
+                value= int(arrayRead[f'{pin-14}0']<<8 + arrayRead[f'{pin-14}1'])
+                readValue= (ANALOG_VOLTS * VOLT_FACTOR)* float(value)
+                return f'{readValue:.3f}'
+            else:
+                return f'0'
+            
+        elif bitON(pwmRegisterC,pin-14):
+            value=int(pwmData[f'{pin-14}'])
+            readValue= (PWM_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
+            return f'{readValue:.3f}'
+        
+        elif bitON(servoRegisterC,pin-14):
+            value=int(servoData[f'{pin-14}'])
+            readValue= (SERVO_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
+            return f'{readValue:.3f}'
+        
+        elif bitON(PORTC, pin-14):
+            return f'1'
+        else:
+                return f'0'
+        
+    elif(pin<8):
+
+        if not bitON(DDRD, pin):
+            return f'0'
+            
+        elif bitON(pwmRegisterD,pin):
+            value=int(pwmData[f'{pin}'])
+            readValue= (PWM_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
+            return f'{readValue:.3f}'
+        
+        elif bitON(servoRegisterD,pin):
+            value=int(servoData[f'{pin}'])
+            readValue= (SERVO_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
+            return f'{readValue:.3f}'
+
+        elif bitON(PORTD, pin):
+            return f'1'
+        else:
+                return f'0'
+        
+    else:
+        if not bitON(DDRB, pin-6):
+            return f'0'
+            
+        elif bitON(pwmRegisterB,pin-6):
+            value=int(pwmData[f'{pin-6}'])
+            readValue= (PWM_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
+            return f'{readValue:.3f}'
+        
+        elif bitON(servoRegisterB,pin-6):
+            value=int(servoData[f'{pin-6}'])
+            readValue= (SERVO_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
+            return f'{readValue:.3f}'
+
+        elif bitON(PORTB, pin-6):
+            return f'1'
+        else:
+                return f'0'
+
+
+
+# Assign The mode of PC_CONTROL_PIN for control the board with a button 
+
+PC_CONTROL_STATE =0
+
+
+
+# Define port type
+arduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
+
+#_____________________________________________________________________#
+#                                                                     #
+#                           SERIAL PROTOCOL                           #
+#_____________________________________________________________________#
+#
+ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+
+
+SEND_STATUS=17; # THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
+RECEIVED=23;  # THIS IS THE IDENTIFIER FOR SEND OF DATA
 RESEND= 19
 WAIT= 22
 END = 23
 CHRNULL = 0
-
+IS_ANALOG_READ = 28
+IS_PWM= 18
+IS_SERVO= 20
 BOARD_INFO =6; # THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER LIBRARY
 PC_REGISTERS_UPDATE = 14; # THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
 
@@ -86,27 +325,6 @@ COM_ATTEMPTS=4;  # THIS IS THE LIMIT OF LOOPS THAT PROGRAM MUST DO TO TRY TO STA
 
 AVAILABLE = True;  # THIS IS THE FLAG TO DETERMINE UNAVAILABLE STATE;
 
-
-
-
-
-# ALL THESE STORE LAST SENT TO AVOID RESEND THE SAME
- 
-prevPortB = 0
-prevDDRB = 0
-prevPortC = 0
-prevDDRC = 0
-prevPortD = 0
-prevDDRD = 0
-
-# TO SET DIGITAL PINS CAN BE USED DIRECT PINBx WHICH WILL BECOME OUTPUT
-# INDEPENDENT OF DDR. I PREFER USE THIS TO AVOID PROBLEMS WITH ANALOG
-
-prevpwmData= dict()
-prevservoData = dict()             
-for i in range (8):
-    prevpwmData[f'{i}']=0  # ARRAY TO STORE PREVIOS PWM DATA
-    prevservoData[f'{i}']=0  # ARRAY TO STORE PREVIOS SERVO DATA
 
 attempt_counter=0
 def receiveBoardInfo(serialscan):
@@ -118,22 +336,22 @@ def receiveBoardInfo(serialscan):
         serialscan.close()
         attempt_counter=0
         return None
+
+    attempt_counter= attempt_counter +1
     
     try:
         print("Try")
         serialscan.open()
         serialscan.write(BOARD_INFO)
         answer_sending = ser.read(1)
-        while(answer_sending!=BOARD_INFO):
+        if(answer_sending!=BOARD_INFO):
             AVAILABLE=False
-            attempt_counter= attempt_counter +1
             serialscan.close()
             receiveBoardInfo(serialscan)
             return None
     except:
         print("execpt")
         AVAILABLE=False
-        attempt_counter= attempt_counter +1  
         serialscan.close()
         receiveBoardInfo(serialscan)
         return None
@@ -156,42 +374,18 @@ def receiveBoardInfo(serialscan):
                 answer_sending=ser.read(1)
                 if(answer_sending!=END):
                     serialscan.close()
-                    attempt_counter= attempt_counter +1
                     sendBoardInfo()
                     return None
                 else:
                     serialscan.write(RECEIVED)            
         except:
                 serialscan.close()
-                attempt_counter= attempt_counter +1
                 receiveBoardInfo(serialscan)
                 return None
         else:
             serialscan.close()
             return  boardDictionary 
         
-
-# IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
-
-def setBit( n, pos):
-        n|=( 1<< pos )
-        return n
-
-def unsetBit( n, pos):
-        n&=~( 1<< pos )
-        return n
-
-def bitON( n, pos):
-        return ( n & (1<<pos)!=0)
-
-
-def counterBitON(data):
-  count=0;
-  while(data>0):
-      data &= (data-1) 
-      count+=count
-  return count  
-
 attempt_counter=0
 
 def receiveData():
@@ -230,6 +424,8 @@ def receiveData():
     counterRegisterPWM=0
     counterRegisterServo=0
 
+    attempt_counter= attempt_counter +1 
+
     try:
         print("try")
         ser.open()
@@ -240,7 +436,6 @@ def receiveData():
                 return -1
                 print("after return")
         print("after open")
-        attempt_counter= attempt_counter +1 
         ser.write(SEND_STATUS)
         print("attempt:" + f'{attempt_counter}')
         print("COM_:" + f'{COM_ATTEMPTS}')      
@@ -292,7 +487,6 @@ def receiveData():
             ser.flush()
             ser.write(RESEND)
             ser.close()
-            attempt_counter= attempt_counter + 1 
             receiveData()
             return -1
                 
@@ -322,17 +516,17 @@ def receiveData():
         for i in range(12,76):
             if (doneReadArrayRead!=True & (receivedRawString[f'{i+2}']==IS_PWM & receivedRawString[f'{i+1}']==CHRNULL)!=True):
                     receivedArrayRead[f'{counterArrayRead}'] = receivedRawString[f'{i}']
-                    ++counterArrayRead
+                    counterArrayRead = counterArrayRead + 1
             else:
                 doneReadArrayRead = True
                 if ( doneReadPWM!=True & (receivedRawString[f'{i+2}']==IS_SERVO & receivedRawString[f'{i+1}']==CHRNULL)!=True):
                     receivedPWM[f'{counterPWM}'] = receivedRawString[f'{i}']
-                    ++counterPWM
+                    counterPWM = counterPWM + 1 
                 else:
                     doneReadPWM=True
                     if((receivedRawString[f'{i+2}']== END & receivedRawString[f'{i+1}']== CHRNULL)!=True):
                         receivedServo[f'{counterServo}'] = receivedRawString[f'{i}']
-                        ++counterServo
+                        counterServo = counterServo + 1
                     else:
                         break
     
@@ -342,13 +536,11 @@ def receiveData():
                 ser.write(RESEND)
                 ser.close()
                 AVAILABLE=False
-                attempt_counter= attempt_counter + 1
                 receiveData()
                 return -1
 
             except:
                 AVAILABLE=False
-                attempt_counter = attempt_counter + 1
                 ser.close
                 receiveData()
                 return -1
@@ -379,7 +571,7 @@ def receiveData():
             for v in range (2):
                 if not bitON(bufferDDRD,i):
                     arrayRead[F'{i}{v}'] = receivedArrayRead[f'{placercounter}']
-                    ++placercounter
+                    placercounter = placecounter +1
             
         placercounter=0
 
@@ -388,16 +580,16 @@ def receiveData():
             if (i<8):
                 if(bitON(bufferpwmRegisterB,i)):
                     pwmData['f{i}'] = receivedPWM[f'{placercounter}']
-                    ++placercounter
+                    placercounter = placecounter +1
             elif (i<16):
                 if(bitON(bufferpwmRegisterC,i-8)):
                     pwmData[f'{i}']= receivedPWM[f'{placercounter}']
-                    ++placercounter
+                    placercounter = placecounter +1
             else:
                 if(bitON(bufferpwmRegisterD,i-16)):
                     pwmData['F{i}'] = receivedPWM[f'{placercounter}']
-                    ++placercounter
-
+                    placercounter = placecounter +1
+                    
         placercounter=0
   
         for i in range(f'{ROW}'):
@@ -405,15 +597,15 @@ def receiveData():
             if (i<8):
                 if(bitON(bufferservoRegisterB,i)):
                     servoData[f'{i}'] = receivedServo[f'{placercounter}']
-                    ++placercounter
+                    placercounter = placecounter +1
             elif (i<16):
                 if(bitON(bufferservoRegisterC,i-8)):
                     servoData[f'{i}'] = receivedServo[f'{placercounter}']
-                    ++placercounter
+                    placercounter = placecounter +1
             else:
                 if(bitON(bufferservoRegisterD,i-16)):
                     servoData[f'{i}'] = receivedServo[f'{placercounter}']
-                    ++placercounter
+                    placercounter = placecounter +1
 
         placercounter=0
 
@@ -424,12 +616,17 @@ attempt_counter=0
 def sendBoardUpdate():
     print("BoardUpdate")
     global attempt_counter
+
     if (attempt_counter>COM_ATTEMPTS):
         ser.close()
         attempt_counter=0
         AVAILABLE=False
-        return None
+        return -1
         print("Comattempt")
+
+    attempt_counter = attempt_counter + 1
+
+
     try:
         ser.open()
         ser.write(PC_REGISTERS_UPDATE)
@@ -437,52 +634,41 @@ def sendBoardUpdate():
         while (receivedAction==WAIT):
             pass
         while (receivedAction!=PC_REGISTERS_UPDATE):
-            ser.flush()
-            ++attempt_counter
+            ser.close()
             sendBoardUpdate()
-            return None
+            return -1
     except:
-            p
-            ser.flush()
-            ++attempt_counter
+            ser.close()
             sendBoardUpdate()
-            return None
+            return -1
     else:
         AVAILABLE=True
 
     if (attempt_counter>COM_ATTEMPTS):
         print("exit finally")
+        ser.close()
         attempt_counter=0
-        return None
+        return -1
 
 
     if (AVAILABLE):    
         try:
             resivedAction=ser.read(1)
         
-            if( PORTD != prevPortD):
-
-                ser.write(PORTD)
-                ser.write(DDRD)
-                ser.write(pwmRegisterD)
-                ser.write(servoRegisterD)
+            ser.write(PORTD)
+            ser.write(DDRD)
+            ser.write(pwmRegisterD)
+            ser.write(servoRegisterD)
+            ser.write(PORTC)
+            ser.write(DDRC)
+            ser.write(pwmRegisterC)
+            ser.write(servoRegisterC)
+            ser.write(PORTB)
+            ser.write(DDRB)
+            ser.write(pwmRegisterB)
+            ser.write(servoRegisterB)      
     
-            if( PORTC != prevPortC):
-    
-                ser.write(PORTC)
-                ser.write(DDRC)
-                ser.write(pwmRegisterC)
-                ser.write(servoRegisterC)
-    
-
-            if( PORTB != prevPortB):
-
-                ser.write(PORTB)
-                ser.write(DDRB)
-                ser.write(pwmRegisterB)
-                ser.write(servoRegisterB)      
-    
-# SEND PWM INFO
+    # SEND PWM INFO
             ser.write(CHRNULL)
             ser.write(IS_PWM)
 
@@ -497,7 +683,7 @@ def sendBoardUpdate():
             ser.write(IS_SERVO)
 
             if (servoData != prevservoData):
-                for i in range(8):
+                for i in range(ROW):
                     if (servoData[f'{i}']!= 0): 
                         if (servoData[f'{i}']!= prevservoData[f'{i}']):
                             ser.write(servoData[f'{i}'])
@@ -512,124 +698,30 @@ def sendBoardUpdate():
             while (receivedAction==WAIT):
                 pass
             if (receivedAction==RESEND):
-                        ser,flush()
-                        ++attempt_counter
+                        ser.close()
                         sendBoardUpdate()
-            while (receivedAction!=RECEIVED):
+                        return -1
+            if (receivedAction!=RECEIVED):
                 resivedAction=ser.read(1)
                 while (receivedAction==WAIT):
                     pass
                     if (receivedAction==RESEND):
-                        ser,flush()
-                        ++attempt_counter
+                        ser.close()
                         sendBoardUpdate()
+                        return -1
         except:
-                ser.flush()
-                ++attempt_counter
+                ser.close()
                 sendBoardUpdate()
+                return -1
             
         else:
             AVAILABLE=True
                 
-        prevPortB = PORTB;
-        prevDDRB = DDRB;
-        prevPortC = PORTC;
-        prevDDRB = DDRB;
-        prevPortD = PORTD;
-        prevDDRB = DDRB;
         prevArrayRead = arrayRead;
         prevpwmData = pwmData;
         prevservoData = servoData; 
     return 1
 
-# Define analog ports as in pins_arduino.h 
-# define PIN_A0   (14)
-# define PIN_A1   (15)
-# define PIN_A2   (16)
-# define PIN_A3   (17)
-# define PIN_A4   (18)
-# define PIN_A5   (19)
-# define PIN_A6   (20)
-# define PIN_A7   (21)
-
-A0= 14
-A1= 15
-A2= 16
-A3= 17
-A4= 18
-A5= 19
-A6= 20
-A7= 21
-
-#ARDUINO PORTS IN ARDUINO PROGRAM .INO
-# const int PC_CONTROL_PIN= 6
-# const int mosfet_1_pin = A6 ;
-# const int mosfet_2_pin = 9 ; // digital pin can be written as analog
-# const int mosfet_3_pin = 10 ;  // digital pin can be written as analog
-# const int battery_voltage_pin= A3 ;
-# const int device_charger_voltage_1 = A0 ;
-# const int device_charger_voltage_2 = A1 ;  
-# const int device_charger_voltage_3 = A2 ;  
-# const int photo_resistor = A7 ;
-
-#_______________________________________________________________________
-# TAKING THE SAME NAMES                                                 #
-# !!!! IMPORTANT THING !!!!!  THIS VARIABLE CONTROL PINS IN ALL CODE    #
-# LATER IN A WINDOW MENU CAN BE CHANGE AS SET UP. ARDUINO .INO          #
-# MUST BE CHANGED IN CODE OR LCD MENU IN CONCORDANCE WITH THIS SETUP    #
-#_______________________________________________________________________#
-
-PC_CONTROL_PIN= 6
-mosfet_1_pin = A6
-mosfet_2_pin = 9
-mosfet_3_pin = 10
-battery_voltage_pin= A3
-device_charger_voltage_1 = A0
-device_charger_voltage_2 = A1
-device_charger_voltage_3 = A2   
-photo_resistor = A7 
-
-# ANALOG PINS ARE IN PORT C, PORT B IS 8 TO 13 FIST TWO PINS OF PORT ARE
-# RESERVED TO SERIAL 0 RX 1 TX MUST NOT BE CHANGED, PORT D IS 0 TO 7
-
-# FIRST ASIGMENT  OF PORT BEFORE SERIAL CONNECTION TO ARDUINO ACCORDING ARDUINO PROGRAM
-# DDRn = PIN MODE 0 INPUT / PORTn = HIGH OR LOW DDRn 1 AND PORTn 1 INPUT PULLUP RESISTOR FOR CONNECTION NOT GROUNDED 
-
-DDRD= setBit(DDRD,PC_CONTROL_PIN)
-DDRC= setBit(DDRC,mosfet_1_pin-14) # 14 for arduino is 0 port C in chip
-DDRB= setBit(DDRB,mosfet_2_pin-6) # 0,1 reserved 2 in PORTB will be 8 in arduino
-DDRB= setBit(DDRB,mosfet_3_pin-6)
-
-# FIRT ASSIGMENT OF REGISTER BEFORE CONNECTION
-
-def registerFirstset(mode, pin):
-    global pwmRegisterC, pwmRegisterB, pwmRegisterD, servoRegisterC, servoRegisterB, servoRegisterD 
-    if (mode=="PWM"):
-        if (pin>13):
-            pwmRegisterC= setBit(pwmRegisterC, pin-14)
-        elif (pin>7):
-            pwmRegisterB= setBit(pwmRegisterB, pin-6)            
-        elif (pin<8):
-            pwmRegisterD= setBit(pwmRegisterD, pin)
-    if (mode=="Servo"):
-        if (pin>13):
-            registerServo= setBit(servoRegisterC, pin-14)
-        elif (pin>7):
-            registerServo= setBit(servoRegisterB, pin-6)            
-        elif (pin<8):
-            registerServo= setBit(servoRegisterD, pin)
-
-registerFirstset("PWM",mosfet_1_pin)
-registerFirstset("PWM",mosfet_2_pin)
-registerFirstset("PWM",mosfet_3_pin)
-
-
-# REST OF PINS ARE INPUT AND DONT NEED PULL UP SINCE HAVE CAPACITORS AND GROUND RESISTORS 
-
-
-# Assign The mode of PC_CONTROL_PIN for control the board with a button 
-
-PC_CONTROL_STATE =0
 
 #_____________________________________________________________________#
 #                                                                     #
@@ -641,11 +733,11 @@ PC_CONTROL_STATE =0
 # IS PRESSED.
 
 entrypwmData= dict()
-for i in range (8):
+for i in range (ROW):
     entrypwmData[f'{i}']=0  # ARRAY TO STORE PWM DATA BEFORE SEND IT TO ARDUINO
 
 entryservoData = dict()
-for i in range (8):
+for i in range (ROW):
      entryservoData[f'{i}']=0 # ARRAY TO STORE SERVO DATA BEFORE SEND IT TO AEDUINO    
  
 
@@ -890,119 +982,6 @@ solarVoltStg = StringVar()
 windVoltStg = StringVar()
 photoResistorStg =StringVar()
 
-# IN CONCORDANCE WITH ARDUINO CODE MUST BE MODIFIED TOGETHER IF NECESSARY
-# THIS IS THE ARDUINO CODE             
-# const int PHOTO_PRESISTOR_LIMIT = 512; // VALUE MUST BE TESTED AND DETERMINE THE SOLAR PANNEL SWITCH OFF.  
-# int photo_resistor_READ=0;
-# const float BAT_FULL_VOLTS = 13.7;             
-# float batteryState = 0;
-# const float BAT_LOW_VOLTS = 12.5 ;
-
-# const float VOLTAGE_DIVIDER_R_TOP = 5.5 ;          // THESE ARE THE VOLTAGE DIVIDER RESISTANCE TO SEND VOLTAGE BATTERY TO
-# const float VOLTAGE_DIVIDER_R_GROUND = 12;          // THE ANALOG PIN DIRECTLY
-
-# const float VOLT_FACTOR = VOLTAGE_DIVIDER_R_GROUND/ (VOLTAGE_DIVIDER_R_GROUND + VOLTAGE_DIVIDER_R_TOP);
-# const float ANALOG_VOLTS = 5 / 1023 ;
-
-# const float CHARGER_VOLTS_1 = 16;  // THIS IS THE TRANSFORMER, SOLAR PANEL, OR OTHER DEVICE VOLTAGE. I HAVE ONLY ONE BUT LEAVE FOR 3
-# const float CHARGER_VOLTS_2 = 16;
-# const float CHARGER_VOLTS_3 = 16;
-
-
-# const float VOLTS_FACTOR_IN_OP = 1 ;  // THIS IS A FACTOR TO AMPLIFY THE SIGNAL FROM THE OP. AMPLIFIER 
-#                                       // WITH IT CAN BE MODIFIED MOSFET GATE VOLTAGE TO HAVE MORE OR LESS CURRENT .
-#                                       // WITHOUT CHANGE THE CIRCUIT.
-# // Function to transform analog read to voltage according constant voltage divider
-
-# SHOULD BE THE INVERSE TO THIS AND CURRENT VALUE THE SAME
-             
-# float analogVoltageConvertion(int read , float voltFactor)
-# {
-#  float voltage=0;
-# voltage = read * ANALOG_VOLTS * voltFactor ;
-# return voltage;
-
-VOLTAGE_DIVIDER_R_TOP = 5.5
-VOLTAGE_DIVIDER_R_GROUND = 12      
-VOLT_FACTOR = VOLTAGE_DIVIDER_R_GROUND/ (VOLTAGE_DIVIDER_R_GROUND + VOLTAGE_DIVIDER_R_TOP)
-VOLTS_FACTOR_IN_OP = 1    # THIS CAN BE SLIGHTLY CHANGED TO CORRECT CIRCUIT TOLERANCE ERRORS THEN APPLY IT TO THE ARDUINO PROGRAM
-ANALOG_VOLTS = 5 / 1023
-PWM_VOLTS = 5/255
-SERVO_VOLTS = 5/180
-
-def convertionToWrite(entryValue):
-
-  float_entryValue= float(entryValue)
-  writeValue= int(float_entryValue*5/255)
-  return writeValue
-
-def convertionReadToVolts(pin):
-
-
-    global arrayRead, PORTB, PORTD, PORTC, DDRB, DDRC, DDRD
-
-    if (pin>14):
-        if not bitON(DDRC, pin-14):
-            if (arrayRead[f'{pin-14}0']!=0 | arrayRead[f'{pin-14}1']!=0):
-                value= int(arrayRead[f'{pin-14}0']<<8 + arrayRead[f'{pin-14}1'])
-                readValue= (ANALOG_VOLTS * VOLT_FACTOR)* float(value)
-                return f'{readValue:.3f}'
-            else:
-                return f'0'
-            
-        elif bitON(pwmRegisterC,pin-14):
-            value=int(pwmData[f'{pin-14}'])
-            readValue= (PWM_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
-            return f'{readValue:.3f}'
-        
-        elif bitON(servoRegisterC,pin-14):
-            value=int(servoData[f'{pin-14}'])
-            readValue= (SERVO_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
-            return f'{readValue:.3f}'
-        
-        elif bitON(PORTC, pin-14):
-            return f'1'
-        else:
-                return f'0'
-        
-    elif(pin<8):
-
-        if not bitON(DDRD, pin):
-            return f'0'
-            
-        elif bitON(pwmRegisterD,pin):
-            value=int(pwmData[f'{pin}'])
-            readValue= (PWM_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
-            return f'{readValue:.3f}'
-        
-        elif bitON(servoRegisterD,pin):
-            value=int(servoData[f'{pin}'])
-            readValue= (SERVO_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
-            return f'{readValue:.3f}'
-
-        elif bitON(PORTD, pin):
-            return f'1'
-        else:
-                return f'0'
-        
-    else:
-        if not bitON(DDRB, pin-6):
-            return f'0'
-            
-        elif bitON(pwmRegisterB,pin-6):
-            value=int(pwmData[f'{pin-6}'])
-            readValue= (PWM_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
-            return f'{readValue:.3f}'
-        
-        elif bitON(servoRegisterB,pin-6):
-            value=int(servoData[f'{pin-6}'])
-            readValue= (SERVO_VOLTS * VOLTS_FACTOR_IN_OP)* float(value)
-            return f'{readValue:.3f}'
-
-        elif bitON(PORTB, pin-6):
-            return f'1'
-        else:
-                return f'0'
 
 
 # Screen message function for button to control board
@@ -1592,6 +1571,65 @@ def setInput(pin):
 
 setInput_wrapper = root.register(setInput)
 
+def setARead(pin):
+
+    if (pin<14):
+         messagebox.showwarning(title='Invalid imput', message="Analog Read only is possible in Analog Pins A0 to A7 (14-21)")
+    else:
+        toUpdateDDRC= unsetBit(entryDDRC,pin-14)
+        entryservoRegisterC = unsetBit(entryservoRegisterC,pin-14)
+        entrypwmRegisterC = unsetBit(entrypwmRegisterC,pin-14)
+        entrydigitalOutputC = setBit(entrydigitalOutputC,pin-14)          
+
+        textToButton("INPUT",pin)
+        if (pin== mosfet_1_pin):
+            varentryMosfet1= ""
+            entryMosfet1.state(['disabled'])
+            chkMos1State.set(False)
+            chkMosfet1.state(['disabled'])
+
+        elif(pin== mosfet_2_pin):
+            varentryMosfet2= ""
+            entryMosfet2.state(['disabled'])
+            chkMos2State.set(False)
+            chkMosfet2.state(['disabled'])
+            
+        elif(pin== mosfet_3_pin):
+            varentryMosfet3= ""
+            entryMosfet3.state(['disabled'])
+            chkMos3State.set(False)
+            chkMosfet3.state(['disabled'])
+            
+        elif(pin== battery_voltage_pin):
+            varentryBattery= ""
+            entryBatteryVolt.state(['disabled'])
+            chkBatState.set(False)
+            chkBatteryVolt.state(['disabled'])
+            
+        elif(pin== device_charger_voltage_1):
+            varentryTrafo= ""
+            entryTrafoVolt.state(['disabled'])
+            chkTrafoState.set(False)
+            chkTrafoVolt.state(['disabled'])
+        elif(pin== device_charger_voltage_2):
+            varentrySolar= ""
+            entrySolarPanelVolt.state(['disabled'])
+            chkSolarState.set(False)
+            chkSolarPanelVolt.state(['disabled'])
+            
+        elif(pin== device_charger_voltage_3):
+            varentryWind= ""
+            entryWindTurbineVolt.state(['disabled'])
+            chkWindState.set(False)
+            chkWindTurbineVolt.state(['disabled'])
+        elif(pin== photo_resistor): 
+            varentryPhoto= ""
+            entryPhotoreResistorVolt.state(['disabled'])
+            chkPhotoState.set(False)
+            chkPhotoreResistorVolt.state(['disabled'])
+    
+setARead_wrapper = root.register(setARead)
+
         
 # class to define custom boxes with plenty buttons to change pin status
 # each button name is defined in *button as key and the function wrapped with register
@@ -1654,7 +1692,7 @@ class CustomMessage(object):
             top.frame.rowconfigure(4, weight=1)
 
             for child in top.frame.winfo_children():
-                child.grid_configure(padx=int(root.winfo_width()/150), pady=int(root.winfo_width()/150))
+                child.grid_configure(padx=int(root.winfo_width()*0.0075), pady=int(root.winfo_width()*0.0075))
 
             
 
@@ -1667,7 +1705,7 @@ def onPressOk(pin):
     global alertWindow
 
     alertWindow.destroy()
-    modeMessageBox= CustomMessage(pin, root, buttonOUTPUT = {"text": "OUTPUT", "command": (setOutput_wrapper, pin)}, buttonINPUT = {"text": "INPUT", "command": (setInput_wrapper, pin)}, buttonPWM = {"text": "PWM", "command": (setPWM_wrapper, pin)}, buttonServo = {"text": "SERVO", "command": (setServo_wrapper, pin)})  
+    modeMessageBox= CustomMessage(pin, root, buttonOUTPUT = {"text": "OUTPUT", "command": (setOutput_wrapper, pin)}, buttonINPUT = {"text": "INPUT", "command": (setInput_wrapper, pin)}, buttonARead = {"text": "A. Read", "command": (setARead_wrapper, pin)}, buttonPWM = {"text": "PWM", "command": (setPWM_wrapper, pin)}, buttonServo = {"text": "SERVO", "command": (setServo_wrapper, pin)})  
 
     
 def onPressCancell():
@@ -2082,23 +2120,23 @@ def validationFunction(value, key,char, del_inst, pin):
         elif(_pin==photo_Resistor):
             varentryPhoto.set(val)
         
-    def getVariableText(val, _pin):
+    def getVariableText(_pin):
         if(_pin==mosfet_1_pin):
-            varentryMosfet1.get(val)
+            varentryMosfet1.get()
         elif(_pin==mosfet_2_pin):
-            varentryMosfet2.get(val)
+            varentryMosfet2.get()
         elif(_pin==mosfet_3_pin):
-            varentryMosfet3.get(val)
+            varentryMosfet3.get()
         elif(_pin==battery_voltage_pin):
-            varentryBattery.get(val)
+            varentryBattery.get()
         elif(_pin==device_charger_voltage_1):
-            varentryTrafo.get(val)
+            varentryTrafo.get()
         elif(_pin==device_charger_voltage_2):
-            varentrySolar.get(val)
+            varentrySolar.get()
         elif(_pin==device_charger_voltage_3):
-            varentryWind.get(val)
+            varentryWind.get()
         elif(_pin==photo_Resistor):
-            varentryPhoto.get(val)
+            varentryPhoto.get()
 
              
     
@@ -2250,8 +2288,54 @@ entryPhotoreResistorVolt.grid(column =3, row =18)
 
 
 def onPressProceed():
-    pass      
+    global PORTB, PORTC, PORTD, entryservoData, entrypwmData, servoData, pwmData 
 
+    tempPORTB = PORTB
+    tempPORTC = PORTC
+    tempPORTD = PORTD
+    tempServoData = servoData
+    temppwmData = pwmData
+
+    totalPins=[mosfet_1_pin, mosfet_2_pin, mosfet_3_pin, battery_voltage_pin, device_charger_voltage_1, device_charger_voltage_2, device_charger_voltage_3, photo_resistor]
+
+    for pin in totalPins:
+        if len(getVariableText(pin))>0:
+            intValue=int(getVariableText(pin))
+            if (chkTempPinInServo(pin)):
+                servoValue = convertionToWriteServo(intValue)
+                entryservoData[f'{pin}'] = servoValue
+            if (chkTempPinInOUTPUT(pin)):
+                if (pin>14):
+                    if(intValue>0):
+                        entryPortC=setBit(entryPortC, pin-14)
+                    else:
+                        entryPortC=unsetBit(entryPortC, pin-14)
+                elif(pin<8):
+                    if(intValue>0):
+                        entryPortD=setBit(entryPortD, pin)
+                    else:
+                        entryPortD=unsetBit(entryPortD, pin)
+                else:
+                    if(intValue>0):
+                        entryPortB=setBit(entryPortB, pin-6)
+                    else:
+                        entryPortB=unsetBit(entryPortB, pin-6)
+            if (chkTempPinInPWM(pin)):
+                pwmValue = convertionToWritePWM(intValue)
+                entrypwmData[f'{pin}'] = pwmVale
+    			
+    PORTC = entryPortC
+    PORTB = entryPortB
+    PORTD = entryPortD
+    pwmData = entrypwmData
+    servoData = entryservoData
+
+    if (sendBoardUddate==-1):
+        PORTB = tempPORTB
+        PORTC = tempPORTC
+        PORTD = tempPORTD
+        servoData = tempServoData
+        pwmData = temppwmData
 
 proceedButton=ttk.Button(mainFrame,state='disabled', text="SEND UPDATE", command=onPressProceed)
 proceedButton.grid(column =4, row =1) 
@@ -2287,7 +2371,7 @@ ttk.Label(mainFrame, text="This data can be plotted for day, week, month or year
 
                           
 for child in mainFrame.winfo_children():
-  child.grid_configure(padx=int(root.winfo_width()/150), pady=int(root.winfo_width()/150))
+  child.grid_configure(padx=int(root.winfo_width()*0.007), pady=int(root.winfo_width()*0.007))
 
 # CUSTOM EVENT TO HANDLE DATA WITH ARDUINO WITH TIME (REQUEST DATA EACH 5 MINUTES, SAVE EACH 15 MINUTES) AND IDLE OPTION (AFTER ALL WIDGET WORKS ARE FINISHED CAN BE CHAGED FOR LESS TIME 
 
