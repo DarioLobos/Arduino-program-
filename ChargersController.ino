@@ -1,4 +1,3 @@
-
 /* THIS DEFINE SHOW IN THE WARNING BOARD DETECTED I INCLUDE THE LIBRARY
 TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
 */
@@ -100,7 +99,7 @@ const int PC_CONTROL_MODE= OUTPUT;
 #define BAUDRATE 9600
 #define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) -1)   
 
-#sefine ASYNCHRONOUS (0<<UMSEL00)
+#define ASYNCHRONOUS (0<<UMSEL00)
 #define PARITY_MODE (2<<UPM00) // EVEN PARITY MODE,  DISSABLED=0 ODD=3
 #define STOP_BIT (0<<USBS0) // ONE STOP BIT, TWO STOP BITS =1
 #define DATA_BIT (3<<UCSZ00) // EIGHT BITS, FIVE BITS=0, SIX BITS=1, SEVEN BITS =2
@@ -117,6 +116,7 @@ void initSerial(void){
   
 // ALL THE FLAGS DEFINED TO SETTING REGISTER UCSR0C
   UCSR0C = ASYNCHRONOUS | PARITY_MODE | STOP_BIT | DATA_BIT  ;
+  
   } 
 
 // IS CONVENIENT USE THEM WITH TRY TO WHEN ARE USED AND IF FAIL HAPPENS WILL TRY AGAIN IN NEXT LOOP WITHOUT EXCEPTION
@@ -142,7 +142,7 @@ return -1;
 
 
 
-int sendChar(unsigned char data){
+int sendChar(uint8_t data){
   int attemps_with_delay=5;
   int counter=0;
   while(!(UCSR0A & (1<<RXC0))){
@@ -176,12 +176,13 @@ while ( UCSR0A & (1<<RXC0) ) dummy = UDR0;
 void closeSerial(){
 
 unsigned char dummy;
-while ( UCSR0A & (1<<RXC0) ) dummy = UDR0;  
+while ( UCSR0A & (1<<RXC0) ){ 
+  dummy = UDR0;  
 }
 
 // THIS DISSABLED RECEIVER AND TRANSMITTER
   UCSR0B &= ~((1<<RXEN0) | (1<<RXEN0));
-   
+
 }
 
 const char SEND_STATUS=17; // THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
@@ -203,7 +204,8 @@ const int IS_ANALOG_READ = 28; // IDENTIFIER FOR ANALOG READ PENDING FIND REGIST
 
 const int ROW=24;
 
-unsigned char arrayRead [7][1]; // ARRAY TO STORE ANALOG READ DATA PENDING FIND REGISTER
+
+uint8_t arrayRead [7][1]; // ARRAY TO STORE ANALOG READ DATA PENDING FIND REGISTER
                           // ARE CERO NO CHAR 0
 // AVOIDING NULL ERROR
 
@@ -219,9 +221,10 @@ uint8_t pwmRegisterC;
 uint8_t pwmRegisterD;
 
 
-unsigned char pwmData[ROW];  // ARRAY TO STORE PWM DATA PENDING FIND REGISTER
 
-for (int i=0; i<ROW ;i++){
+uint8_t pwmData[ROW];  // ARRAY TO STORE PWM DATA PENDING FIND REGISTER
+
+for (int i=0; i<ROW ;++i){
   pwmData[i]=0;
   }
 
@@ -265,16 +268,18 @@ uint8_t prevDDRC;
 uint8_t prevPortD;
 uint8_t prevDDRD;
 
-unsigned char prevArrayRead [7][1];
-unsigned char prevpwmData [ROW];
-unsigned char prevservoData [ROW];
 
- for (int i=0; i<ROW ;i++){
+uint8_t prevArrayRead [7][1];
+
+uint8_t prevpwmData [ROW];
+
+uint8_t prevservoData [ROW];
+
+ for (int i=0; i<ROW ; ++i){
   prevpwmData[i]=0;
   prevservoData[i]=0;
-  }
-unsigned char receivedAction=0;
-
+  uint8_t receivedAction=0;
+ }
 
 // THIS IS TO SEND THE DATA WHEN RECEIVE THE CHAR SEND_STATUS
 
@@ -282,7 +287,7 @@ unsigned char receivedAction=0;
 
 boolean boardInfo();
 boolean receiveData();
-
+boolean sendStatus();
  
 boolean listen_PC_Start(){
 
@@ -293,7 +298,7 @@ boolean listen_PC_Start(){
 initSerial();
 receivedAction= receiveChar();
 
-for(int i=0; i < COM_ATTEMPTS; i++){
+for(int i=0; i < COM_ATTEMPTS; ++i){
   if (receivedAction==-1){
     flush();
     receivedAction= receiveChar();
@@ -338,7 +343,7 @@ if (AVAILABLE){
    } 
 }
 
-counterSend=0
+int counterSend=0;
 
 boolean sendStatus() {
 
@@ -351,111 +356,118 @@ boolean sendStatus() {
       counterSend=0;
       closeSerial();
       return false;
-      break;
     }
 
 if (counterBoard>0){
   receivedAction= receiveChar();
   if((receivedAction==-1)|(receivedAction!=SEND_STATUS)){
   ++counterSend;
-  flush();
+  closeSerial();
   sendStatus();
+  return false;
 }
 }
 
 
   if(sendChar(SEND_STATUS)==-1){
         ++counterSend;
-        flush();
+        closeSerial();
        sendStatus();
+       return false;
         }
 
     // SEND PORTS STATUS
 
-    if( PORTD != prevPortD){
-
       if(sendChar(uint8_t (PORTD))==-1){
         ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar(uint8_t (DDRD))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar(uint8_t (pwmRegisterD))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar(uint8_t(servoRegisterD))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
-    }
-    
-    if( PORTC != prevPortC){
-    
+        
       if(sendChar( uint8_t(PORTC))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar( uint8_t(DDRC))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar(uint8_t (pwmRegisterC))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar(uint8_t (servoRegisterC))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
-        }
+        return false;
         }
         
-    if( PORTB != prevPortB){
-
       if(sendChar(uint8_t (PORTB))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar(uint8_t (DDRB))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
       if(sendChar(uint8_t (pwmRegisterB))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
-      if(sendChar(uint8_t(servoRegisterB)))==-1){
+      if(sendChar(uint8_t(servoRegisterB))==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
-    }
+    
 
 // SEND ANALOG READ DATA
     
     if(sendChar(CHRNULL)==-1)){
         ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }           //USING TWO BYTES AS IDENTIFIER 
         
     if (sendChar(IS_ANALOG_READ)==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
 
     if (arrayRead != prevArrayRead){
@@ -470,13 +482,17 @@ if (counterBoard>0){
             byteHigh=arrayRead[i][1];
             if (sendChar(byteHigh)==-1){
                ++counterSend;
-               flush();
-               sendStatus();
+        closeSerial();
+        sendStatus();
+        return false;
+        break;
                }
             if (sendChar(byteLow)==-1{
                  ++counterSend;
-                 flush();
-                 sendStatus();
+                closeSerial();
+                sendStatus();
+                return false;
+                break;
                   }
             }
         }
@@ -489,11 +505,15 @@ if (counterBoard>0){
          ++counterSend;
         flush();
         sendStatus();
+                closeSerial();
+        sendStatus();
+        return false;
         }
     if(sendChar(IS_PWM)==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
 
     if (pwmData != prevpwmData){
@@ -503,8 +523,10 @@ if (counterBoard>0){
           if (pwmData[i]!= prevpwmData[i]){ 
             if(sendChar(pwmData[i])==-1){
                ++counterSend;
-               flush();
-               sendStatus();
+        closeSerial();
+        sendStatus();
+        return false;
+        break;
         }
           }
         }
@@ -512,7 +534,20 @@ if (counterBoard>0){
     }
     
 //SEND DERVO INFO
-   sendChar(IS_SERVO);
+
+    if(sendChar(CHRNULL)==-1)){
+        ++counterSend;
+        closeSerial();
+        sendStatus();
+        return false;
+        }         
+    if(sendChar(IS_SERVO)==-1)){
+        ++counterSend;
+        closeSerial();
+        sendStatus();
+        return false;
+        }         
+        
   if (servoData != prevservoData){
     
     for (int i=0; i<ROW ;i++){
@@ -520,8 +555,10 @@ if (counterBoard>0){
         if (servoData[i]!= prevservoData[i]){ 
           if (sendChar(servoData[i])==-1){
                ++counterSend;
-              flush();
-              sendStatus();
+        closeSerial();
+        sendStatus();
+        return false;
+        break;
         }
         }
       }
@@ -529,44 +566,54 @@ if (counterBoard>0){
   }
   if (sendChar(CHRNULL)==-1){
          ++counterSend;
-        flush();
+       closeSerial();
         sendStatus();
+        return false;
         }
 if (sendChar(END)==-1)){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
   
   // ASK DIRECTIONS TO COMPUTER RECEIVED?
   // CONPUTER CAN SEND WAIT AND RECEIVED
 
-      do {
         receivedAction= receiveChar();
         if (receivedAction==-1){
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
+        break;
         }
         while (receivedAction==WAIT){
         }
         if (receivedAction==RESEND) {
          ++counterSend;
-        flush();
+        closeSerial();
         sendStatus();
+        return false;
         }
-      }
-       while (receivedAction!=RECEIVED);
-    
-  prevPortB = PORTB;
-  prevDDRB = DDRB;
-  prevPortC = PORTC;
-  prevDDRB = DDRB;
-  prevPortD = PORTD;
-  prevDDRB = DDRB;
-  prevArrayRead = arrayRead;
-  prevpwmData = pwmData;
-  prevservoData = servoData; 
+      
+      if(receivedAction!=RECEIVED){
+         ++counterSend;
+        closeSerial();
+        sendStatus();
+        return false;
+        }
+            
+  for (int i=0; i<8 ;i++){
+  prevArrayRead[i][0] = arrayRead[i][0];
+  prevArrayRead[i][1] = arrayRead[i]10];
+  }
+  
+  for (int i=0; i<ROW ;i++){
+  prevpwmData[i] = pwmData[i];
+  prevservoData[i] = servoData[i]; 
+  }
+  
   closeSerial();
   AVAILABLE=true;
   return true;
@@ -584,34 +631,34 @@ void setBit( int& n,int pos){
 }
 
 boolean bitON( int n,int pos){
-return ( n & (1<<pos)!=0)
+return ( n & (1<<pos)!=0);
 }
 
 unsigned int counterBitON(uint8_t data){
   int count=0;
   while(data){
-      data &= (data-1) 
+      data &= (data-1); 
       count++;
     }
-  return count  
+  return count;  
   }
     
 void newAnalogWrite(int pin, int value){  
-  for (int i=0; i<sizeof(pinForPWM); i++){
+  for (int i=0; i<sizeof(pinForPWM); ++i){
     if (pinForPWM[i]==pin){
 
-    unsigned char lowbyte = unsigned char(value);
+    uint8_t lowbyte = uint8_t(value);
     
     analogWrite(pin, value);
 
     pwmData[pin]= lowbyte; 
     
-    int n=0
+    int n=0;
     
     if(pinForPWM[i]<8){
       
       bitON(pwmRegisterB,i);
-   
+    }
     else if(pinForPWM[i]<16){
       bitON(pwmRegisterC,i-8);    
     }
@@ -621,13 +668,13 @@ void newAnalogWrite(int pin, int value){
   }  
 }
 }
-}
+
 
 void newServo(int pin, int value){  
-  for (int i=0; i<sizeof(pinForPWM); i++){
+  for (int i=0; i<sizeof(pinForPWM); ++i){
     if (pinForPWM[i]==pin){
 
-    unsigned char lowbyte = unsigned char(value);
+    uint8_t lowbyte = uint8_t (value);
 
     myServo.attach(pin);
     myServo.write(value);
@@ -676,90 +723,101 @@ if (counterBoard>COM_ATTEMPTS){
   counterBoard=0;
   closeSerial();
   return false;
-  break;
 }
 
 if (counterBoard>0){
 receivedAction= receiveChar();
 if((receivedAction==-1)|(receivedAction!=BOARD_INFO)){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
 }
   
 if(sendChar(BOARD_INFO)==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
 
 if(sendString(BoardIdentify::type)==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
-if(sendChar('/n')==-1){
+if(sendChar(char('\n'))==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
 if(sendString(BoardIdentify::make)==-1){
   ++counterBoard;
   flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
  }
-if(sendChar('/n')==-1){
+if(sendChar(char('\n'))==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
 if(sendString(BoardIdentify::model)==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
-}
-if(sendChar('/n')==-1){
-  ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
+        }
+if(sendChar(char('\n'))==-1){
+        closeSerial();
+        boardInfo();
+        return false;
 }
 if(sendString(BoardIdentify::mcu)==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
-if(sendChar('/n')==-1){
+if(sendChar(char('\n'))==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
 if(sendChar(END)==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+         closeSerial();
+        boardInfo();
+        return false;
 }
 receivedAction= receiveChar();
 if(receivedAction==-1){
   ++counterBoard;
-  flush();
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
 if(receivedAction==RECEIVED){
   closeSerial();
   AVAILABLE=true;
   return true;
- break; 
 }
 else{
   ++counterBoard;
-  flush()
-  boardInfo();
+        closeSerial();
+        boardInfo();
+        return false;
 }
 }
 }
 
-counterReceive=0;      
+int counterReceived=0;      
 boolean receiveData(){
   
 int counter=0;
@@ -793,51 +851,45 @@ AVAILABLE=false;
     closeSerial();
     counterReceived=0;
     return false;    
-    break;
   }
   if (counterReceived>0){
-      if (sendChar(PC_REGISTERS_UPDATE)==-1){
-         ++counterReceive;
-        flush();
-      }
-  }
-    
+
   tempReceived=receiveChar();
     if (tempReceived ==-1){
-         ++counterReceive;
-        flush();
+         ++counterReceived;
+        closeSerial();
         receiveData();
+        return false;
         }
     
   if (tempReceived==PC_REGISTERS_UPDATE){
       AVAILABLE=true;
-      break;
     }
     else{
-         ++counterReceive;      
-        flush();
+         ++counterReceived;      
+              closeSerial();
         receiveData();
-        break;
+        return false;
     }
+}
+    
+      if (sendChar(PC_REGISTERS_UPDATE)==-1){
+         ++counterReceived;
+        closeSerial();
+        receiveData();
+        return false;
+      }
 
 }
    
 while(AVAILABLE){
-
-    tempReceived=receiveChar();
-    if ((tempReceived ==-1)|(tempReceived==PC_REGISTERS_UPDATE)){
-         ++counterReceive;
-        flush();
-        receiveData();
-        break;
-        }
-            
+    tempReceived=receiveChar();        
     receivedRawString[counter]=tempReceived;
+    ++counter;
     if(receivedRawString[counter]==END & receivedRawString[counter-1]==CHRNULL){
       counter=0;
-      counterReceive=0;
-      break;
-        
+      counterReceived=0;
+      break;        
   }
   }
   
@@ -864,7 +916,14 @@ counterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRe
 
 boolean doneReadPWM = false;
 
-for(int i=12;i<59;i++){
+if (receivedRawString[12]!=CHRNULL | receivedRawString[13]!=ISPWM){
+         ++counterReceived;
+        closeSerial();
+        receiveData();
+        return false;  
+}
+
+for(int i=14;i<65;++i){
     if(!doneReadPWM & !(receivedRawString[i+2]==IS_SERVO & receivedRawString[i+1]==CHRNULL) ){
     receivedPWM[counterPWM] = receivedRawString[i];
     ++counterPWM;
@@ -884,14 +943,13 @@ for(int i=12;i<59;i++){
   
 
   if (counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo){
-  flush();
-  AVAILABLE=false;  
-  receiveData();
+          closeSerial();
+        receiveData();
+        return false;
   }
   
   sendChar(RECEIVED);
-  flush();
-  serialClose();
+  closeSerial();
   
   if (bitON(bufferPortB,PC_CONTROL_PIN)){
     
@@ -907,21 +965,21 @@ for(int i=12;i<59;i++){
   for (int i=0; i<ROW; i++){
     pwmData[i]=0;
     if (i<8){
-      if(bitON(bufferRegisterPWMB,i)){
+      if(bitON(bufferRegisterPWMD,i)){
         pwmData[i] = receivedPWM[placercounter];
         analogWrite(i,int(pwmData[i]));
         ++placercounter;
         }
     }
-    else if (i<16){
-          if(bitON(bufferRegisterPWMC,i-8)){
+    else if (i<14){
+          if(bitON(bufferRegisterPWMB,i-6)){
             pwmData[i]= receivedPWM[placercounter];
             analogWrite(i,int(pwmData[i]));
             ++placercounter;
           }
     }
     else{
-         if(bitON(bufferRegisterPWMD,i-16)){
+         if(bitON(bufferRegisterPWMC,i-14)){
             pwmData[i] = receivedPWM[placercounter];
             analogWrite(i,int(pwmData[i]));
             ++placercounter;
@@ -934,15 +992,15 @@ for(int i=12;i<59;i++){
   for (int i=0; i<ROW; i++){
     servoData[i]=0;
     if (i<8){
-      if(bitON(bufferRegisterServoB,i)){
+      if(bitON(bufferRegisterServoD,i)){
         servoData[i] = receivedServo[placercounter];
         myServo.attach(i);
         myServo.write(int(servoData[i]));
         ++placercounter;
       }
     }
-    else if (i<16){
-          if(bitON(bufferRegisterServoC,i-8)){
+    else if (i<14){
+          if(bitON(bufferRegisterServoB,i-6)){
             servoData[i] = receivedServo[placercounter];
             myServo.attach(i); 
             myServo.write(int(servoData[i]));
@@ -950,7 +1008,7 @@ for(int i=12;i<59;i++){
           }
     }
     else{
-         if(bitON(bufferRegisterServoD,i-16)){
+         if(bitON(bufferRegisterServoC,i-14)){
             servoData[i] = receivedServo[placercounter];
             myServo.attach(i);
             myServo.write(int(servoData[i]));
