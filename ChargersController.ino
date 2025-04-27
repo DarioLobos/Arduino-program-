@@ -5,7 +5,7 @@
 //https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 // IC2 keypad:
 // https://github.com/RobTillaart/I2CKeyPad
-// BOARD IDENITY:
+// BOARD IDENTIFY:
 // https://github.com/MattFryer/Board_Identify
 
 /* THIS DEFINE SHOW IN THE WARNING BOARD DETECTED I INCLUDE THE LIBRARY
