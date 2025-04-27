@@ -5,6 +5,8 @@
 //https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 // IC2 keypad:
 // https://github.com/RobTillaart/I2CKeyPad
+// BOARD IDENITY:
+// https://github.com/MattFryer/Board_Identify
 
 /* THIS DEFINE SHOW IN THE WARNING BOARD DETECTED I INCLUDE THE LIBRARY
 TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
