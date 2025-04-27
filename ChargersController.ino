@@ -1,4 +1,10 @@
-
+// IMPORTANT THESE ARE THE LIBRARIES USED ARE PLENTY WITH SIMILAR NAMES AND DIFFERENT FUNCTIONS 
+// RTC: (Find there DS1302.h etc)
+// https://github.com/TeraHz/Doser/tree/master
+// MCP 23017:
+//https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
+// IC2 keypad:
+// https://github.com/RobTillaart/I2CKeyPad
 
 /* THIS DEFINE SHOW IN THE WARNING BOARD DETECTED I INCLUDE THE LIBRARY
 TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
