@@ -1,3 +1,5 @@
+
+
 /* THIS DEFINE SHOW IN THE WARNING BOARD DETECTED I INCLUDE THE LIBRARY
 TO SEND INFO TO COMPUTER AND SET UP MINS WITH A TUPLE I WILL USE SERIAL
 */
@@ -190,7 +192,6 @@ const char SEND_STATUS=17; // THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUES
 
 const char RECEIVED=23; // THIS IS THE IDENTIFIER FOR SEND OF DATA
 
-
 /* PORT B AND PORT C ARE DIGITAL, PORT D IS ANALOG REGISTERS ARE DDRB, DDRC, DDRD, OUTPUT IN 1 
  *  THIS IS THE IDENTIFIER FOR TELL THAT NEXT BYTES WILL BE PWM FIRST CONFIGURATION THEN DATA 
  ^ PARITY IN THE RECEIVER MUST BE THAT PWN ON MUST BE EQUAL TO ARRAY RECEIVED LENGHT OR RESEND
@@ -204,42 +205,24 @@ const int IS_ANALOG_READ = 28; // IDENTIFIER FOR ANALOG READ PENDING FIND REGIST
 
 const int ROW=24;
 
+const char IS_PWM= 18;  // IDENTIFIER FOR PWM
 
 uint8_t arrayRead [7][1]; // ARRAY TO STORE ANALOG READ DATA PENDING FIND REGISTER
-                          // ARE CERO NO CHAR 0
-// AVOIDING NULL ERROR
+                                                    // ARE CERO NO CHAR 0
 
-for (int i=0; i<8 ;i++){
-  arrayRead[i][0]=0;
-  arrayRead[i][1]=0;
-}
+uint8_t pwmData[ROW];  // ARRAY TO STORE PWM DATA PENDING FIND REGISTER
 
-const char IS_PWM= 18;  // IDENTIFIER FOR PWM
+unsigned char servoData[ROW];  // ARRAY TO STORE SERVO DATA PENDING FIND REGISTER
 
 uint8_t pwmRegisterB; // REGISTERS TO IDENTIFY EACH PWM PIN
 uint8_t pwmRegisterC;
 uint8_t pwmRegisterD;
-
-
-
-uint8_t pwmData[ROW];  // ARRAY TO STORE PWM DATA PENDING FIND REGISTER
-
-for (int i=0; i<ROW ;++i){
-  pwmData[i]=0;
-  }
-
 
 const char IS_SERVO= 20; // IDENTIFIER FOR SERVO
 
 uint8_t servoRegisterB; // REGISTERS TO IDENTIFY EACH SERVO PIN
 uint8_t servoRegisterC;
 uint8_t servoRegisterD;
-
-unsigned char servoData[ROW];  // ARRAY TO STORE SERVO DATA PENDING FIND REGISTER
-
-for (int i=0; i<ROW ;i++){
-  servoData[i]=0;
-  }
 
 const char RESEND= 19;
 
@@ -275,73 +258,385 @@ uint8_t prevpwmData [ROW];
 
 uint8_t prevservoData [ROW];
 
- for (int i=0; i<ROW ; ++i){
-  prevpwmData[i]=0;
-  prevservoData[i]=0;
-  uint8_t receivedAction=0;
+
+/* THIS IS FOR THE PIN EXTENDER USING THE CHIP MCP23X17 
+ *  EXPANDER PIN CONNECTION:
+ *  MCP         ARDUINO
+ *  PIN 12 TO   A5 (I2C CLOCK)
+ *  PIN 13 TO   A4 (I2C DATA)
+ *  PIN 15:     GROUND (ONLY ONE EXPANDER CONNECTED, THIS IS TO ADDRESS MORE THAN ONE)
+ *  PIN 16:     GROUND
+ *  PIN 17:     GROUND
+ *  PIN 9:      5V
+ *  PIN 10:     GROUND (OF CHIP)
+ *  PIN 18:     10 KOHM TO 5V  (CHIP RESET ACTIVE LOW)
+ *  
+ *  FROM LIBRARY README.MD
+ *  When using single pin operations such as _pinMode(pinId, dir)_ or _digitalRead(pinId)_  or _digitalWrite(pinId, val)_ then the pins are addressed using the ID's below. 
+ *  For example, for set the mode of _GPB0_ then use _pinMode(8, ...)_. **NOTE** The MCP23008 and MCP23S08 only have _GPAx_ pins.
+
+| MCP23x08 Pin # | MCP23x17 Pin # | Pin Name | Pin ID |
+| :------------: | :------------: | :------: | :----: |
+|       10       |       21       |   GPA0   |   0    |
+|       11       |       22       |   GPA1   |   1    |
+|       12       |       23       |   GPA2   |   2    |
+|       13       |       24       |   GPA3   |   3    |
+|       14       |       25       |   GPA4   |   4    |
+|       15       |       26       |   GPA5   |   5    |
+|       16       |       27       |   GPA6   |   6    |
+|       17       |       28       |   GPA7   |   7    |
+|       --       |       1        |   GPB0   |   8    |
+|       --       |       2        |   GPB1   |   9    |
+|       --       |       3        |   GPB2   |   10   |
+|       --       |       4        |   GPB3   |   11   |
+|       --       |       5        |   GPB4   |   12   |
+|       --       |       6        |   GPB5   |   13   |
+|       --       |       7        |   GPB6   |   14   |
+|       --       |       8        |   GPB7   |   15   |
+for serial transmission is connected to pin 0 and 1 (RX,TX)
+*/
+
+#include <Adafruit_MCP23X17.h>
+#include <Wire.h>
+
+# define MCP_PIN0 0  
+# define MCP_PIN1 1  
+# define MCP_PIN2 2
+# define MCP_PIN3 3
+# define MCP_PIN4 4
+# define MCP_PIN5 5
+# define MCP_PIN6 6
+# define MCP_PIN7 7
+# define MCP_PIN8 8
+# define MCP_PIN9 9
+# define MCP_PIN10 10
+# define MCP_PIN11 11
+# define MCP_PIN12 12
+# define MCP_PIN13 13
+# define MCP_PIN14 14
+# define MCP_PIN15 15
+
+// DS1302:  CE pin    -> Arduino Digital 2
+//          I/O pin   -> Arduino Digital 3
+//          SCLK pin  -> Arduino Digital 4
+
+
+//#include <DS1307RTC.h>
+#include <DS1302.h>
+
+/* LCD CONTROL PINS THIS GOES HERE IN THE ARDUINO, keyPad WILL BE IN THE EXTENDER. 
+ *  keyPad WILL HAVE LESS USAGE THAN LCD ALWAYS WORKING
+----------------arduino control part------------------
+
+ * The circuit:
+ * LCD RS pin to digital pin 12
+ * LCD Enable pin to digital pin 11
+ * LCD D4 pin to digital pin 8
+ * LCD D5 pin to digital pin 7
+ * LCD D6 pin to digital pin 6
+ * LCD D7 pin to digital pin 5
+ * LCD R/W pin to ground
+ * LCD VSS pin to ground
+ * LCD VCC pin to 5V
+ * 10K resistor:
+ * ends to +5V and ground
+ * wiper to LCD VO pin (pin 3)
+ Mellis
+ library modified 5 Jul 2009
+ by Limor Foldied (http://www.ladyada.net)
+ example added 9 Jul 2009
+ by Tom Igoe
+ modified 22 Nov 2010
+ by Tom Igoe
+ modified 7 Nov 2016
+ by Arturo Guadalupi
+
+ This example code is in the public domain.
+
+ http://www.arduino.cc/en/Tutorial/LiquidCrystalHelloWorld
+
+ I took written parts from this example to for time reduction
+
+*/
+
+
+
+#include <LiquidCrystal.h>
+
+const int numRows = 2;
+const int numCols = 16;
+
+// LCD MESSAGES
+const String LCD_CHARGE_MESSAGE = "BATTERY CHARGING";
+const int CHARGE_LENGHT = sizeof(LCD_CHARGE_MESSAGE);
+const String LCD_FULL_BATTERY = "BATTERY FULL CHARGED";
+const int FULL_LENGHT = sizeof(LCD_FULL_BATTERY);
+const String LCD_BATTERY_NO_CHARGE = "POWER SUPPLY DISCONECTED";
+const int NO_CHARGE_LENGHT = sizeof(LCD_BATTERY_NO_CHARGE);
+const String set_clock_time1 ="Set clk times?";
+const String set_clock_time2 ="A=Y B=N C=Clear";
+const String clock_or_time1 ="Set clk or time?";
+const String clock_or_time2 ="A=Clk B=Tm *=Esc";
+const String time_explain1 = "Time for start"; // devices can be two for autogeneration
+const String time_explain2 = "charge from net"; // and one from public electricity company
+const String time_explain3 = "public network"; // days with no sun or wind to charge.
+const String time_explain4 = "for no sun& wind";
+const String entry_time1 = "Insert hour 0-24";
+const String entry_time2 = "Insert min. 0-60";                               
+const String lcdEsc ="           *=Esc";
+const String lcdMenu ="#=Menu   ";
+const String ok_setup1 = "  Time stored  ";
+const String ok_setup2 = "  succefully.  ";
+const String ok_clear1 = "The Time stored";
+const String ok_clear2 = " was erased.  ";
+
+// BATTERY CHARACTERISTIC
+// MEASSURING RANGE 3 T0 5 
+// VOLTS 14 TO 12
+
+const int PHOTO_PRESISTOR_LIMIT = 512; // VALUE MUST BE TESTED AND DETERMINE THE SOLAR PANNEL SWITCH OFF.  
+int PHOTO_RESISTOR_READ=0;
+const float BAT_FULL_VOLTS = 13.7;             
+float batteryState = 0;
+const float BAT_LOW_VOLTS = 12.5 ;
+
+const float VOLTAGE_DIVIDER_R_TOP = 5.5 ;          // THESE ARE THE VOLTAGE DIVIDER RESISTANCE TO SEND VOLTAGE BATTERY TO
+const float VOLTAGE_DIVIDER_R_GROUND = 12;          // THE ANALOG PIN DIRECTLY
+
+const float VOLT_FACTOR = VOLTAGE_DIVIDER_R_GROUND/ (VOLTAGE_DIVIDER_R_GROUND + VOLTAGE_DIVIDER_R_TOP);
+const float ANALOG_VOLTS = 5 / 1023 ;
+
+const float CHARGER_VOLTS_1 = 16;  // THIS IS THE TRANSFORMER, SOLAR PANEL, OR OTHER DEVICE VOLTAGE. I HAVE ONLY ONE BUT LEAVE FOR 3
+const float CHARGER_VOLTS_2 = 16;
+const float CHARGER_VOLTS_3 = 16;
+
+
+const float VOLTS_FACTOR_IN_OP = 1 ;  // THIS IS A FACTOR TO AMPLIFY THE SIGNAL FROM THE OP. AMPLIFIER 
+                                      // WITH IT CAN BE MODIFIED MOSFET GATE VOLTAGE TO HAVE MORE OR LESS CURRENT .
+                                      // WITHOUT CHANGE THR CIRCUIT.
+
+//
+//    FILE: I2CkeyPad_keymap.ino
+//  AUTHOR: Rob Tillaart
+// PURPOSE: demo key mapping
+//     URL: https://github.com/RobTillaart/I2CkeyPad
+//
+//  PCF8574 I changed the address for MCP23017 d. lobos
+//    pin p0-p3 rows
+//    pin p4-p7 columns
+//  4x4 or smaller keyPad.
+
+#include <I2CKeyPad.h>
+
+
+
+const uint8_t keyPad_ADDRESS = 0x20; // address of MCP23017 chip on I2C bus PORT A. 
+                                     // ARDUINO HAVE ONLY ONE IC2 PORT SO A0,A1 AND A2 IN EXTENDER GOES TO GROUND 
+
+
+// initialize constant for pins to read voltages and mosfets
+// A4 and A5 ARE RESERVED FOR PIN EXTENDER BOARD, SERIAL PINS
+
+const int MOSFET_1_PIN = A6 ;
+int mosfet1Signal=0; // signal to send to the mosfet; 
+const int MOSFET_2_PIN = 9 ; // digital pin can be written as analog
+int mosfet2Signal=0;
+const int MOSFET_3_PIN = 10 ;  // digital pin can be written as analog
+int mosfet3Signal=0;
+
+const int BATTERY_VOLTAGE_PIN= A3 ;
+
+const int DEVICE_CHARGER_VOLTAGE_1 = A0 ;
+float device1ChargerRead;
+const int DEVICE_CHARGER_VOLTAGE_2 = A1 ;  
+float device2ChargerRead;
+const int DEVICE_CHARGER_VOLTAGE_3 = A2 ;  
+float device3ChargerRead;
+
+const int PHOTO_RESISTOR = A7 ; 
+
+
+// CHECK WHICH PINS ADMITS PWM USAGE
+int pinForPWM[]={3,5,6,9,10,11,14,15,16,17,18,19,20,21};
+
+// THESE ARE BITWISE FUNCTION NEEDED TO HANDLE DATA 
+// IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
+// int& this is a reference of memory position of number and this change bit direct in the addrees that is the data
+
+void setBit( int& n,int pos){
+  n|=( 1<< pos );
+}
+
+boolean bitON( int n,int pos){
+return ( n & (1<<pos)!=0);
+}
+
+unsigned int counterBitON(uint8_t data){
+  int count=0;
+  while(data){
+      data &= (data-1); 
+      count++;
+    }
+  return count;  
+  }
+
+// Function to transform analog read to voltage according constant voltage divider
+
+float analogVoltageConvertion(int read , float voltFactor){
+  float voltage=0;
+  voltage = read * ANALOG_VOLTS * voltFactor ;
+  return voltage;
+}
+
+// convertion from analog read to analog write
+
+int analogConvertionToWrite(int inputread,float voltMax){
+    
+float inputout = float(inputread) * 255 * (voltMax-BAT_LOW_VOLTS)/1023;
+
+if (inputout > 0){
+
+return int(inputout);
+  
+}
+}
+    
+void newAnalogWrite(int pin, int value){  
+  for (int i=0; i<sizeof(pinForPWM); ++i){
+    if (pinForPWM[i]==pin){
+
+    uint8_t lowbyte = uint8_t(value);
+    
+    analogWrite(pin, value);
+
+    pwmData[pin]= lowbyte; 
+    
+    int n=0;
+    
+    if(pinForPWM[i]<8){
+      
+      bitON(pwmRegisterB,i);
+    }
+    else if(pinForPWM[i]<16){
+      bitON(pwmRegisterC,i-8);    
+    }
+    else{
+      bitON(pwmRegisterD,i-16);
+    }
+  }  
+}
+}
+
+// THIS IS TO SEND THE BOARD INFORMATION FOR SCAN THE PORT
+
+int counterBoard=0;
+
+boolean boardInfo(){
+
+AVAILABLE= false;
+
+while(true){
+
+if (counterBoard>COM_ATTEMPTS){
+  AVAILABLE=false;
+  counterBoard=0;
+  closeSerial();
+  return false;
+}
+
+if (counterBoard>0){
+receivedAction= receiveChar();
+if((receivedAction==-1)|(receivedAction!=BOARD_INFO)){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+}
+  
+if(sendChar(BOARD_INFO)==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+
+if(sendString(BoardIdentify::type)==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+if(sendChar(char('\n'))==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+if(sendString(BoardIdentify::make)==-1){
+  ++counterBoard;
+  flush();
+        closeSerial();
+        boardInfo();
+        return false;
  }
+if(sendChar(char('\n'))==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+if(sendString(BoardIdentify::model)==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+        }
+if(sendChar(char('\n'))==-1){
+        closeSerial();
+        boardInfo();
+        return false;
+}
+if(sendString(BoardIdentify::mcu)==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+if(sendChar(char('\n'))==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+if(sendChar(END)==-1){
+  ++counterBoard;
+         closeSerial();
+        boardInfo();
+        return false;
+}
+receivedAction= receiveChar();
+if(receivedAction==-1){
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+if(receivedAction==RECEIVED){
+  closeSerial();
+  AVAILABLE=true;
+  return true;
+}
+else{
+  ++counterBoard;
+        closeSerial();
+        boardInfo();
+        return false;
+}
+}
+}
 
 // THIS IS TO SEND THE DATA WHEN RECEIVE THE CHAR SEND_STATUS
-
-
-
-boolean boardInfo();
-boolean receiveData();
-boolean sendStatus();
- 
-boolean listen_PC_Start(){
-
-/* exception handling is dissabled in the compiler pending implement 
- *  try catch for the case of wire get disconnected in the middle of
- *  a transmission to don't let program crack for an exception 
- */ 
-initSerial();
-receivedAction= receiveChar();
-
-for(int i=0; i < COM_ATTEMPTS; ++i){
-  if (receivedAction==-1){
-    flush();
-    receivedAction= receiveChar();
-    AVAILABLE = false;
-  }
-  else{
-    AVAILABLE = true;
-    break;
-  }
-  }
-
-
-// THIS IS NOT USED IS FOR THREAD AND TIMING OF THREADS
-
-if (AVAILABLE){
-  
-  while (receivedAction==WAIT){
-   }
-
-   if (receivedAction==BOARD_INFO) {
-    if(!(boardInfo())){
-      closeSerial();
-      return false;
-    }
-    return true;
-   }
-
-   if (receivedAction==PC_REGISTERS_UPDATE) {
-    if(!(receiveData())){
-      closeSerial();
-      return false;
-    }
-    return true;
-   }
-
-  if (receivedAction==SEND_STATUS) 
-    if(!(sendStatus())){
-      closeSerial();
-      return false;
-    }
-    return true;
-   } 
-}
 
 int counterSend=0;
 
@@ -351,14 +646,14 @@ boolean sendStatus() {
   
   while(true){
     
-  if (counterBoard>COM_ATTEMPTS){
+  if (counterSend>COM_ATTEMPTS){
       AVAILABLE=false;
       counterSend=0;
       closeSerial();
       return false;
     }
 
-if (counterBoard>0){
+if (counterSend>0){
   receivedAction= receiveChar();
   if((receivedAction==-1)|(receivedAction!=SEND_STATUS)){
   ++counterSend;
@@ -620,204 +915,8 @@ if (sendChar(END)==-1)){
   }
 }
 
-// CHECK WHICH PINS ADMITS PWM USAGE
-int pinForPWM[]={3,5,6,9,10,11,14,15,16,17,18,19,20,21};
-
-// IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
-// int& this is a reference of memory position of number and this change bit direct in the addrees that is the data
-
-void setBit( int& n,int pos){
-  n|=( 1<< pos );
-}
-
-boolean bitON( int n,int pos){
-return ( n & (1<<pos)!=0);
-}
-
-unsigned int counterBitON(uint8_t data){
-  int count=0;
-  while(data){
-      data &= (data-1); 
-      count++;
-    }
-  return count;  
-  }
-    
-void newAnalogWrite(int pin, int value){  
-  for (int i=0; i<sizeof(pinForPWM); ++i){
-    if (pinForPWM[i]==pin){
-
-    uint8_t lowbyte = uint8_t(value);
-    
-    analogWrite(pin, value);
-
-    pwmData[pin]= lowbyte; 
-    
-    int n=0;
-    
-    if(pinForPWM[i]<8){
-      
-      bitON(pwmRegisterB,i);
-    }
-    else if(pinForPWM[i]<16){
-      bitON(pwmRegisterC,i-8);    
-    }
-    else{
-      bitON(pwmRegisterD,i-16);
-    }
-  }  
-}
-}
-
-
-void newServo(int pin, int value){  
-  for (int i=0; i<sizeof(pinForPWM); ++i){
-    if (pinForPWM[i]==pin){
-
-    uint8_t lowbyte = uint8_t (value);
-
-    myServo.attach(pin);
-    myServo.write(value);
-
-    servoData[pin]= lowbyte; 
-    if(pinForPWM[i]<8){
-      bitON(servoRegisterB,i);
-       
-    }
-    else if(pinForPWM[i]<16){
-      bitON(servoRegisterC,i-8);
-       
-    }
-    else{
-      bitON(servoRegisterD,i-16);
-    }
-  }  
-}
-}
-
-int pinForAnalog[]={A0,A1,A2,A3,A4,A5,A6,A7};
-
-int newAnalogRead(int pin){
-  int value=analogRead(pin);
-  for (int i=0; i<sizeof(pinForAnalog); i++){
-    if (pinForAnalog[i]==pin){
-        uint8_t Highbyte =  value >>8;
-        uint8_t Lowbyte = value;
-        arrayRead[pin][0] = uint8_t(Highbyte);
-        arrayRead[pin][1] = uint8_t(Lowbyte);
-    }
-  }
-  return value;
-}
-
-int counterBoard=0;
-
-boolean boardInfo(){
-
-AVAILABLE= false;
-
-while(true){
-
-if (counterBoard>COM_ATTEMPTS){
-  AVAILABLE=false;
-  counterBoard=0;
-  closeSerial();
-  return false;
-}
-
-if (counterBoard>0){
-receivedAction= receiveChar();
-if((receivedAction==-1)|(receivedAction!=BOARD_INFO)){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-}
-  
-if(sendChar(BOARD_INFO)==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-
-if(sendString(BoardIdentify::type)==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-if(sendChar(char('\n'))==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-if(sendString(BoardIdentify::make)==-1){
-  ++counterBoard;
-  flush();
-        closeSerial();
-        boardInfo();
-        return false;
- }
-if(sendChar(char('\n'))==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-if(sendString(BoardIdentify::model)==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-        }
-if(sendChar(char('\n'))==-1){
-        closeSerial();
-        boardInfo();
-        return false;
-}
-if(sendString(BoardIdentify::mcu)==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-if(sendChar(char('\n'))==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-if(sendChar(END)==-1){
-  ++counterBoard;
-         closeSerial();
-        boardInfo();
-        return false;
-}
-receivedAction= receiveChar();
-if(receivedAction==-1){
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-if(receivedAction==RECEIVED){
-  closeSerial();
-  AVAILABLE=true;
-  return true;
-}
-else{
-  ++counterBoard;
-        closeSerial();
-        boardInfo();
-        return false;
-}
-}
-}
-
 int counterReceived=0;      
+
 boolean receiveData(){
   
 int counter=0;
@@ -1021,193 +1120,103 @@ for(int i=14;i<65;++i){
 return true;
 }
 }
- 
-/* THIS IS FOR THE PIN EXTENDER USING THE CHIP MCP23X17 
- *  EXPANDER PIN CONNECTION:
- *  MCP         ARDUINO
- *  PIN 12 TO   A5 (I2C CLOCK)
- *  PIN 13 TO   A4 (I2C DATA)
- *  PIN 15:     GROUND (ONLY ONE EXPANDER CONNECTED, THIS IS TO ADDRESS MORE THAN ONE)
- *  PIN 16:     GROUND
- *  PIN 17:     GROUND
- *  PIN 9:      5V
- *  PIN 10:     GROUND (OF CHIP)
- *  PIN 18:     10 KOHM TO 5V  (CHIP RESET ACTIVE LOW)
- *  
- *  FROM LIBRARY README.MD
- *  When using single pin operations such as _pinMode(pinId, dir)_ or _digitalRead(pinId)_  or _digitalWrite(pinId, val)_ then the pins are addressed using the ID's below. 
- *  For example, for set the mode of _GPB0_ then use _pinMode(8, ...)_. **NOTE** The MCP23008 and MCP23S08 only have _GPAx_ pins.
-
-| MCP23x08 Pin # | MCP23x17 Pin # | Pin Name | Pin ID |
-| :------------: | :------------: | :------: | :----: |
-|       10       |       21       |   GPA0   |   0    |
-|       11       |       22       |   GPA1   |   1    |
-|       12       |       23       |   GPA2   |   2    |
-|       13       |       24       |   GPA3   |   3    |
-|       14       |       25       |   GPA4   |   4    |
-|       15       |       26       |   GPA5   |   5    |
-|       16       |       27       |   GPA6   |   6    |
-|       17       |       28       |   GPA7   |   7    |
-|       --       |       1        |   GPB0   |   8    |
-|       --       |       2        |   GPB1   |   9    |
-|       --       |       3        |   GPB2   |   10   |
-|       --       |       4        |   GPB3   |   11   |
-|       --       |       5        |   GPB4   |   12   |
-|       --       |       6        |   GPB5   |   13   |
-|       --       |       7        |   GPB6   |   14   |
-|       --       |       8        |   GPB7   |   15   |
-for serial transmission is connected to pin 0 and 1 (RX,TX)
-*/
-
-#include <Adafruit_MCP23X17.h>
-#include <Wire.h>
-
-# define MCP_PIN0 0  
-# define MCP_PIN1 1  
-# define MCP_PIN2 2
-# define MCP_PIN3 3
-# define MCP_PIN4 4
-# define MCP_PIN5 5
-# define MCP_PIN6 6
-# define MCP_PIN7 7
-# define MCP_PIN8 8
-# define MCP_PIN9 9
-# define MCP_PIN10 10
-# define MCP_PIN11 11
-# define MCP_PIN12 12
-# define MCP_PIN13 13
-# define MCP_PIN14 14
-# define MCP_PIN15 15
-
- Adafruit_MCP23X17 mcp;
-
-// DEFINE RESET PIN
 
 
+// THIS IS THE LISTENER TO WAIT FOR PC DIRECTIONS IN ANY LOOP 
 
-// DS1302:  CE pin    -> Arduino Digital 2
-//          I/O pin   -> Arduino Digital 3
-//          SCLK pin  -> Arduino Digital 4
+boolean listen_PC_Start(){
 
-#include <DS1302.h>
-DS1302 rtc(2, 3, 4);
+/* exception handling is dissabled in the compiler pending implement 
+ *  try catch for the case of wire get disconnected in the middle of
+ *  a transmission to don't let program crack for an exception 
+ */ 
+initSerial();
+receivedAction= receiveChar();
 
+for(int i=0; i < COM_ATTEMPTS; ++i){
+  if (receivedAction==-1){
+    flush();
+    receivedAction= receiveChar();
+    AVAILABLE = false;
+  }
+  else{
+    AVAILABLE = true;
+    break;
+  }
+  }
 
-/* LCD CONTROL PINS THIS GOES HERE IN THE ARDUINO, keyPad WILL BE IN THE EXTENDER. 
- *  keyPad WILL HAVE LESS USAGE THAN LCD ALWAYS WORKING
-----------------arduino control part------------------
+// THIS IS NOT USED IS FOR THREAD AND TIMING OF THREADS
 
- * The circuit:
- * LCD RS pin to digital pin 12
- * LCD Enable pin to digital pin 11
- * LCD D4 pin to digital pin 8
- * LCD D5 pin to digital pin 7
- * LCD D6 pin to digital pin 6
- * LCD D7 pin to digital pin 5
- * LCD R/W pin to ground
- * LCD VSS pin to ground
- * LCD VCC pin to 5V
- * 10K resistor:
- * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
- Mellis
- library modified 5 Jul 2009
- by Limor Foldied (http://www.ladyada.net)
- example added 9 Jul 2009
- by Tom Igoe
- modified 22 Nov 2010
- by Tom Igoe
- modified 7 Nov 2016
- by Arturo Guadalupi
-
- This example code is in the public domain.
-
- http://www.arduino.cc/en/Tutorial/LiquidCrystalHelloWorld
-
- I took written parts from this example to for time reduction
-
-*/
-
-
-
-#include <LiquidCrystal.h>
-
-// initialize the library by associating any needed LCD interface pin
-// with the arduino pin number it is connected to
-const int rs = 12, en = 11, d4 = 8, d5 = 7, d6 = 6, d7 = 5;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-
-const int numRows = 2;
-const int numCols = 16;
-
-// LCD MESSAGES
-const String LCD_CHARGE_MESSAGE = "BATTERY CHARGING";
-const int CHARGE_LENGHT = sizeof(LCD_CHARGE_MESSAGE);
-const String LCD_FULL_BATTERY = "BATTERY FULL CHARGED";
-const int FULL_LENGHT = sizeof(LCD_FULL_BATTERY);
-const String LCD_BATTERY_NO_CHARGE = "POWER SUPPLY DISCONECTED";
-const int NO_CHARGE_LENGHT = sizeof(LCD_BATTERY_NO_CHARGE);
-const String set_clock_time1 ="Set clk times?";
-const String set_clock_time2 ="A=Y B=N C=Clear";
-const String clock_or_time1 ="Set clk or time?";
-const String clock_or_time2 ="A=Clk B=Tm *=Esc";
-const String time_explain1 = "Time for start"; // devices can be two for autogeneration
-const String time_explain2 = "charge from net"; // and one from public electricity company
-const String time_explain3 = "public network"; // days with no sun or wind to charge.
-const String time_explain4 = "for no sun& wind";
-const String entry_time1 = "Insert hour 0-24";
-const String entry_time2 = "Insert min. 0-60";                               
-const String lcdEsc ="           *=Esc";
-const String lcdMenu ="#=Menu   ";
-const String ok_setup1 = "  Time stored  ";
-const String ok_setup2 = "  succefully.  ";
-const String ok_clear1 = "The Time stored";
-const String ok_clear2 = " was erased.  ";
-
-// BATTERY CHARACTERISTIC
-// MEASSURING RANGE 3 T0 5 
-// VOLTS 14 TO 12
-
-const int PHOTO_PRESISTOR_LIMIT = 512; // VALUE MUST BE TESTED AND DETERMINE THE SOLAR PANNEL SWITCH OFF.  
-int PHOTO_RESISTOR_READ=0;
-const float BAT_FULL_VOLTS = 13.7;             
-float batteryState = 0;
-const float BAT_LOW_VOLTS = 12.5 ;
-
-const float VOLTAGE_DIVIDER_R_TOP = 5.5 ;          // THESE ARE THE VOLTAGE DIVIDER RESISTANCE TO SEND VOLTAGE BATTERY TO
-const float VOLTAGE_DIVIDER_R_GROUND = 12;          // THE ANALOG PIN DIRECTLY
-
-const float VOLT_FACTOR = VOLTAGE_DIVIDER_R_GROUND/ (VOLTAGE_DIVIDER_R_GROUND + VOLTAGE_DIVIDER_R_TOP);
-const float ANALOG_VOLTS = 5 / 1023 ;
-
-const float CHARGER_VOLTS_1 = 16;  // THIS IS THE TRANSFORMER, SOLAR PANEL, OR OTHER DEVICE VOLTAGE. I HAVE ONLY ONE BUT LEAVE FOR 3
-const float CHARGER_VOLTS_2 = 16;
-const float CHARGER_VOLTS_3 = 16;
-
-
-const float VOLTS_FACTOR_IN_OP = 1 ;  // THIS IS A FACTOR TO AMPLIFY THE SIGNAL FROM THE OP. AMPLIFIER 
-                                      // WITH IT CAN BE MODIFIED MOSFET GATE VOLTAGE TO HAVE MORE OR LESS CURRENT .
-                                      // WITHOUT CHANGE THR CIRCUIT.
-                                                      
-// Function to transform analog read to voltage according constant voltage divider
-
-float analogVoltageConvertion(int read , float voltFactor){
-  float voltage=0;
-  voltage = read * ANALOG_VOLTS * voltFactor ;
-  return voltage;
-}
-
-// convertion from analog read to analog write
-
-int analogConvertionToWrite(int inputread,float voltMax){
-    
-float inputout = float(inputread) * 255 * (voltMax-BAT_LOW_VOLTS)/1023;
-
-if (inputout > 0){
-
-return int(inputout);
+if (AVAILABLE){
   
+  while (receivedAction==WAIT){
+   }
+
+   if (receivedAction==BOARD_INFO) {
+    if(!(boardInfo())){
+      closeSerial();
+      return false;
+    }
+    return true;
+   }
+
+   if (receivedAction==PC_REGISTERS_UPDATE) {
+    if(!(receiveData())){
+      closeSerial();
+      return false;
+    }
+    return true;
+   }
+
+  if (receivedAction==SEND_STATUS) 
+    if(!(sendStatus())){
+      closeSerial();
+      return false;
+    }
+    return true;
+   } 
 }
+
+// THESE ARE FUNCTIONS TO SAVE INFO IN THE REGISTERS, I AM NOT ACTUALLY USE THEM FOR NOW.
+
+void newServo(int pin, int value){  
+  for (int i=0; i<sizeof(pinForPWM); ++i){
+    if (pinForPWM[i]==pin){
+
+    uint8_t lowbyte = uint8_t (value);
+
+    myServo.attach(pin);
+    myServo.write(value);
+
+    servoData[pin]= lowbyte; 
+    if(pinForPWM[i]<8){
+      bitON(servoRegisterB,i);
+       
+    }
+    else if(pinForPWM[i]<16){
+      bitON(servoRegisterC,i-8);
+       
+    }
+    else{
+      bitON(servoRegisterD,i-16);
+    }
+  }  
+}
+}
+
+int pinForAnalog[]={A0,A1,A2,A3,A4,A5,A6,A7};
+
+int newAnalogRead(int pin){
+  int value=analogRead(pin);
+  for (int i=0; i<sizeof(pinForAnalog); i++){
+    if (pinForAnalog[i]==pin){
+        uint8_t Highbyte =  value >>8;
+        uint8_t Lowbyte = value;
+        arrayRead[pin][0] = uint8_t(Highbyte);
+        arrayRead[pin][1] = uint8_t(Lowbyte);
+    }
+  }
+  return value;
 }
 
 // Function to display voltage and message
@@ -1270,39 +1279,6 @@ void lcdSetupTimes (String message1, String message2){
     lcd.display();
 }
 
-//
-//    FILE: I2CkeyPad_keymap.ino
-//  AUTHOR: Rob Tillaart
-// PURPOSE: demo key mapping
-//     URL: https://github.com/RobTillaart/I2CkeyPad
-//
-//  PCF8574 I changed the address for MCP23017 d. lobos
-//    pin p0-p3 rows
-//    pin p4-p7 columns
-//  4x4 or smaller keyPad.
-
-
-#include <I2CKeyPad.h>
-
-/* KEY PAD PINS 
- *  
- *  PIN NRO.          PIN CONNECTION
- *  MCP_PIN0 0        21
- *  MCP_PIN1 1        22          
- *  MCP_PIN2 2        23
- *  MCP_PIN3 3        24
- *  MCP_PIN4 4        25
- *  MCP_PIN5 5        26
- *  MCP_PIN6 6        27
- *  MCP_PIN7 7        28
- */
-
-const uint8_t keyPad_ADDRESS = 0x20; // address of MCP23017 chip on I2C bus PORT A. 
-                                     // ARDUINO HAVE ONLY ONE IC2 PORT SO A0,A1 AND A2 IN EXTENDER GOES TO GROUND 
-
-I2CKeyPad keyPad(keyPad_ADDRESS);
-
-char keymap[19] = "123A456B789C*0#DNF";  // N = NoKey, F = Fail
 
 
 void Setup_menu_call(){
@@ -1539,30 +1515,37 @@ break;
 }
 
 
-// initialize constant for pins to read voltages and mosfets
-// A4 and A5 ARE RESERVED FOR PIN EXTENDER BOARD, SERIAL PINS
-
-const int MOSFET_1_PIN = A6 ;
-int mosfet1Signal=0; // signal to send to the mosfet; 
-const int MOSFET_2_PIN = 9 ; // digital pin can be written as analog
-int mosfet2Signal=0;
-const int MOSFET_3_PIN = 10 ;  // digital pin can be written as analog
-int mosfet3Signal=0;
-
-const int BATTERY_VOLTAGE_PIN= A3 ;
-
-const int DEVICE_CHARGER_VOLTAGE_1 = A0 ;
-float device1ChargerRead;
-const int DEVICE_CHARGER_VOLTAGE_2 = A1 ;  
-float device2ChargerRead;
-const int DEVICE_CHARGER_VOLTAGE_3 = A2 ;  
-float device3ChargerRead;
-
-const int PHOTO_RESISTOR = A7 ; 
-
-
 void setup()
 {  
+
+// AVOIDING NULL ERROR
+
+for (int i=0; i<8 ;i++){
+  arrayRead[i][0]=0;
+  arrayRead[i][1]=0;
+}
+
+for (int i=0; i<ROW ;++i){
+  pwmData[i]=0;
+  }
+
+for (int i=0; i<ROW ;i++){
+  servoData[i]=0;
+  }
+
+ for (int i=0; i<ROW ; ++i){
+  prevpwmData[i]=0;
+  prevservoData[i]=0;
+  uint8_t receivedAction=0;
+ }
+
+DS1302 rtc(2, 3, 4);
+
+// initialize the library by associating any needed LCD interface pin
+// with the arduino pin number it is connected to
+const int rs = 12, en = 11, d4 = 8, d5 = 7, d6 = 6, d7 = 5;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
 
 // initialize the PC control pin as an output:
   pinMode(PC_CONTROL_PIN, PC_CONTROL_MODE);
@@ -1571,10 +1554,10 @@ void setup()
   rtc.halt(false);
   rtc.writeProtect(true);
   
-// SerialBegin for MCP extension board chip 
- Serial.begin(115200);
+I2CKeyPad keyPad(keyPad_ADDRESS);
 
-while( !Serial ){/*wait*/}   //for USB serial switching boards
+char keymap[19] = "123A456B789C*0#DNF";  // N = NoKey, F = Fail
+
   Wire.begin( );
   Wire.setClock(400000);
    if (keyPad.begin() == false)
@@ -1590,11 +1573,35 @@ while( !Serial ){/*wait*/}   //for USB serial switching boards
   
 // BEGIN AND PIN ASSIGMENT IN MCP23017 
 
+Adafruit_MCP23X17 mcp;
 mcp.begin_I2C();
-mcp.pinMode(3, OUTPUT);
 
+/* KEY PAD PINS 
+ *  
+ *  PIN NRO.          PIN CONNECTION
+ *  MCP_PIN0 0        21
+ *  MCP_PIN1 1        22          
+ *  MCP_PIN2 2        23
+ *  MCP_PIN3 3        24
+ *  MCP_PIN4 4        25
+ *  MCP_PIN5 5        26
+ *  MCP_PIN6 6        27
+ *  MCP_PIN7 7        28
+ */
 
-// pin assigment modes
+mcp.pinmode( MCP_PIN0, INPUT_PULLUP)
+mcp.pinmode( MCP_PIN1, INPUT_PULLUP)
+mcp.pinmode( MCP_PIN2, INPUT_PULLUP)
+mcp.pinmode( MCP_PIN3, INPUT_PULLUP)
+mcp.pinmode( MCP_PIN4, INPUT_PULLUP)
+mcp.pinmode( MCP_PIN5, INPUT_PULLUP)
+mcp.pinmode( MCP_PIN6, INPUT_PULLUP)
+mcp.pinmode( MCP_PIN7, INPUT_PULLUP)
+
+mcp.pinMode(MCP_PIN15, OUTPUT); // PIN FOR RESET
+
+// pin assigment modes in board
+
   pinMode( MOSFET_1_PIN, OUTPUT);
   pinMode( MOSFET_2_PIN, OUTPUT);
   pinMode( MOSFET_3_PIN, OUTPUT);
@@ -1627,9 +1634,6 @@ PHOTO_RESISTOR_READ = newAnalogRead(PHOTO_RESISTOR);
   
 while (batteryState <  BAT_FULL_VOLTS) {
 
-
-
-
 mosfet1Signal = analogConvertionToWrite(device1ChargerRead,CHARGER_VOLTS_1); // I ONLY HAVE ONE DEVICE UP TO NOW
 mosfet2Signal = analogConvertionToWrite(device2ChargerRead,CHARGER_VOLTS_2);
 mosfet3Signal = analogConvertionToWrite(device3ChargerRead,CHARGER_VOLTS_3);
@@ -1641,7 +1645,6 @@ else{
   lcdMessage (LCD_CHARGE_MESSAGE,CHARGE_LENGHT, batteryState );
 
 }
-
 
 String timeclk = rtc.getTimeStr(FORMAT_SHORT);
 char hourclk[]= {timeclk.charAt(0),timeclk.charAt(1),timeclk.charAt(3), timeclk.charAt(4)};
@@ -1680,11 +1683,7 @@ if(listen_PC_Start()==true){
 
 lcdMessage (LCD_FULL_BATTERY,FULL_LENGHT, batteryState );
 
-
-
 }
-
-  
   
 while (PC_CONTROL_STATE== HIGH) {
   
