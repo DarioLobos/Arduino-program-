@@ -57,10 +57,10 @@ A7= 21
 # MUST BE CHANGED IN CODE OR LCD MENU IN CONCORDANCE WITH THIS SETUP    #
 #_______________________________________________________________________#
 
-PC_CONTROL_PIN= 6
-mosfet_1_pin = A6
+PC_CONTROL_PIN= A6
+mosfet_1_pin = 5
 mosfet_2_pin = 9
-mosfet_3_pin = 10
+mosfet_3_pin = 11
 battery_voltage_pin= A3
 device_charger_voltage_1 = A0
 device_charger_voltage_2 = A1
@@ -95,10 +95,11 @@ def counterBitON(data):
 # TO MODIFIED AND SEND THEM BACK TO CHANGE ARDUINO CONFIGURATION
 
 # PORTn define is Pins are in HIGH = 1 or LOW =0
-PORTB=0
+PORTB=3 # 0 and 1 must be high are clock signals, can be used as sinchonism.
 PORTC=0
-PORTD=0
-# DDRn define mode INPUT=0 OUTPUT=1
+PORTD=0 # 0 and 1 are serial when is serial on can be overwritten by code and use it anyway, seting PCINT16 AND PCINT17 PCMSK2 |= (1<< PCINT16) | (1<<PCINT17)
+
+# DDRn define mode INPUT=0 OUTPUT=1 
 DDRB=0
 DDRC=0
 DDRD=0
@@ -130,8 +131,8 @@ for i in range (ROW):
 # FIRST ASIGMENT  OF PORT BEFORE SERIAL CONNECTION TO ARDUINO ACCORDING ARDUINO PROGRAM
 # DDRn = PIN MODE 0 INPUT / PORTn = HIGH OR LOW DDRn 1 AND PORTn 1 INPUT PULLUP RESISTOR FOR CONNECTION NOT GROUNDED 
 
-DDRD= setBit(DDRD,PC_CONTROL_PIN)
-DDRC= setBit(DDRC,mosfet_1_pin-14) # 14 for arduino is 0 port C in chip
+DDRC= setBit(DDRC,PC_CONTROL_PIN-14) # 14 for arduino is 0 port C in chip
+DDRD= setBit(DDRD,mosfet_1_pin) 
 DDRB= setBit(DDRB,mosfet_2_pin-6) # 0,1 reserved 2 in PORTB will be 8 in arduino
 DDRB= setBit(DDRB,mosfet_3_pin-6)
 
@@ -483,7 +484,7 @@ def receiveData():
                 receiveData()
                 return -1
 
-        if (receivedRawString[f'12']!=IS_ANALOG_READ):
+        if (receivedRawString[f'12']!=CHRNULL | receivedRawString[f'13']!=IS_ANALOG_READ):
             ser.flush()
             ser.write(RESEND)
             ser.close()
@@ -513,7 +514,7 @@ def receiveData():
         doneReadArrayRead = False
         doneReadPWM = False
     
-        for i in range(12,76):
+        for i in range(14,81):
             if (doneReadArrayRead!=True & (receivedRawString[f'{i+2}']==IS_PWM & receivedRawString[f'{i+1}']==CHRNULL)!=True):
                     receivedArrayRead[f'{counterArrayRead}'] = receivedRawString[f'{i}']
                     counterArrayRead = counterArrayRead + 1
@@ -575,35 +576,35 @@ def receiveData():
             
         placercounter=0
 
-        for i in range(f'{ROW}'):
+        for i in range(ROW):
             pwmData[f'{i}']=0
             if (i<8):
-                if(bitON(bufferpwmRegisterB,i)):
+                if(bitON(bufferpwmRegisterD,i)):
                     pwmData['f{i}'] = receivedPWM[f'{placercounter}']
                     placercounter = placecounter +1
-            elif (i<16):
-                if(bitON(bufferpwmRegisterC,i-8)):
+            elif (i<14):
+                if(bitON(bufferpwmRegisterC,i-6)):
                     pwmData[f'{i}']= receivedPWM[f'{placercounter}']
                     placercounter = placecounter +1
             else:
-                if(bitON(bufferpwmRegisterD,i-16)):
+                if(bitON(bufferpwmRegisterB,i-14)):
                     pwmData['F{i}'] = receivedPWM[f'{placercounter}']
                     placercounter = placecounter +1
                     
         placercounter=0
   
-        for i in range(f'{ROW}'):
+        for i in range(ROW):
             servoData[f'{i}']=0;
             if (i<8):
-                if(bitON(bufferservoRegisterB,i)):
+                if(bitON(bufferservoRegisterD,i)):
                     servoData[f'{i}'] = receivedServo[f'{placercounter}']
                     placercounter = placecounter +1
             elif (i<16):
-                if(bitON(bufferservoRegisterC,i-8)):
+                if(bitON(bufferservoRegisterC,i-6)):
                     servoData[f'{i}'] = receivedServo[f'{placercounter}']
                     placercounter = placecounter +1
             else:
-                if(bitON(bufferservoRegisterD,i-16)):
+                if(bitON(bufferservoRegisterB,i-14)):
                     servoData[f'{i}'] = receivedServo[f'{placercounter}']
                     placercounter = placecounter +1
 
@@ -653,8 +654,6 @@ def sendBoardUpdate():
 
     if (AVAILABLE):    
         try:
-            resivedAction=ser.read(1)
-        
             ser.write(PORTD)
             ser.write(DDRD)
             ser.write(pwmRegisterD)
@@ -848,26 +847,50 @@ def dirFile():
 
 
 arduinoLabel=StringVar() # String label for board detected
+countport=0
 def scanPort():
-    global ser, arduinoPort, arduinoLabel
+    global ser, arduinoPort, arduinoLabel, countport
 
     ser.close()
     arduinoDict = dict()
     portlist = serial.tools.list_ports.comports()
+    d = len(portlist)
+    sleep(20)
+    if (d >0):
+        while(True):
+            if (countport < d):
+                if portlist[countport].name!=None or portlist[countport].name!="":
+                    stringdevice = str(portlist[countport].name)
+                    try: 
+                        serialScan =serial.Serial(port=stringdevice,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+                        arduinoDict = receiveBoardInfo(serialScan)
+                        sleep(20)
+                    except:
+                        countport= countport +1
+                        scanPort()
+                        break
+                    finally:
+                        if arduinoDict is not None:
+                            arduinoPort = stringdevice
+                            portVar.set(arduinoPort)
+                            arduinoLabel.set(f'Port detected= {arduinoPort} , Boar Info: Type = {arduinoDict["Tyoe"]}, Make = {arduinoDict["Make"]}, Model = {arduinoDict["MODEL"]}, MCU = {arduinoDict["MCU"]}')
+                            ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+                            oountport=0
+                            break
+                        else:
+                            countport= countport +1
+                            scanPort()
+                            break
 
-    for d in portlist:
-        if d.name:
-            stringdevice = str(d.name)
-            serialScan =serial.Serial(port=stringdevice,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
-            arduinoDict = receiveBoardInfo(serialScan)
-            if arduinoDict is not None:
-                arduinoPort = stringdevice
-                portVar.set(arduinoPort)
-                arduinoLabel.set(f'Port detected= {arduinoPort} , Board Info: Type = {arduinoDict["Tyoe"]}, Make = {arduinoDict["Make"]}, Model = {arduinoDict["MODEL"]}, MCU = {arduinoDict["MCU"]}')
-                ser =serial.Serial(port=stringdevice,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
-                break
             else:
-                arduinoLabel.set("BOARD NOT DETECTED, CHECK CONNECTION")
+                    arduinoLabel.set("BOARD NOT DETECTED, CHECK CONNECTION")
+                    countport=0
+                    break
+    else:
+                arduinoLabel.set("PORTS NOT DETECTED, CHECK PORT SETTINGS OR PERMISSIONS TO CAN SCAN")
+                countport=0
+                
+
 def openHelp():
 
     global screenWidth, screenHeight
@@ -2084,8 +2107,47 @@ prevpinandPinMOde= dict()
 # char = last character entry ( %S sustitution in wrapper NOT USED IN THIS CASE)
 # del_inst = 0 for deletion , 1 for insertion (%d sustitution in wrapper used only in OUTPUT)
 
+def setVariableText(val, _pin):
+    global mosfet_1_pin, mosfet_2_pin, mosfet_3_pin, battery_voltage_pin, device_charger_voltage_1, device_charger_voltage_2, device_charger_voltage_3, photo_resistor, varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto
+    if(_pin==mosfet_1_pin):
+        varentryMosfet1.set(val)
+    elif(_pin==mosfet_2_pin):
+        varentryMosfet2.set(val)
+    elif(_pin==mosfet_3_pin):
+        varentryMosfet3.set(val)
+    elif(_pin==battery_voltage_pin):
+        varentryBattery.set(val)
+    elif(_pin==device_charger_voltage_1):
+        varentryTrafo.set(val)
+    elif(_pin==device_charger_voltage_2):
+        varentrySolar.set(val)
+    elif(_pin==device_charger_voltage_3):
+        varentryWind.set(val)
+    elif(_pin==photo_resistor):
+        varentryPhoto.set(val)
+        
+def getVariableText(_pin):
+    global mosfet_1_pin, mosfet_2_pin, mosfet_3_pin, battery_voltage_pin, device_charger_voltage_1, device_charger_voltage_2, device_charger_voltage_3, photo_resistor, varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto
+    if(_pin==mosfet_1_pin):
+        return varentryMosfet1.get()
+    elif(_pin==mosfet_2_pin):
+        return varentryMosfet2.get()
+    elif(_pin==mosfet_3_pin):
+        return varentryMosfet3.get()
+    elif(_pin==battery_voltage_pin):
+        return varentryBattery.get()
+    elif(_pin==device_charger_voltage_1):
+        return varentryTrafo.get()
+    elif(_pin==device_charger_voltage_2):
+        return varentrySolar.get()
+    elif(_pin==device_charger_voltage_3):
+        return varentryWind.get()
+    elif(_pin==photo_resistor):
+        return varentryPhoto.get()
+
+
 def validationFunction(value, key,char, del_inst, pin):
-    global prevInput, prevPWM, prevServo, prevOutput, mosfet_1_pin, varentryMosfet1, mosfet_2_pin, varentryMosfet2, mosfet_3_pin, varentryMosfet3, battery_voltage_pin, varentryBattery, device_charger_voltage_1, varentryTrafo, device_charger_voltage_2, varentrySolar, device_charger_voltage_3, varentryWind, device_charger_voltage_3, varentryPhoto
+    global prevInput, prevPWM, prevServo, prevOutput, prevpinandPinMOde
     pin = int(pin)
     
     pinandPinMOde= dict()
@@ -2101,45 +2163,7 @@ def validationFunction(value, key,char, del_inst, pin):
 
     if (chkTempPinInOUTPUT(pin)):
         pinandPinMOde[pin] = "IsOuput"
-    
-    def setVariableText(val, _pin):
-        if(_pin==mosfet_1_pin):
-            varentryMosfet1.set(val)
-        elif(_pin==mosfet_2_pin):
-            varentryMosfet2.set(val)
-        elif(_pin==mosfet_3_pin):
-            varentryMosfet3.set(val)
-        elif(_pin==battery_voltage_pin):
-            varentryBattery.set(val)
-        elif(_pin==device_charger_voltage_1):
-            varentryTrafo.set(val)
-        elif(_pin==device_charger_voltage_2):
-            varentrySolar.set(val)
-        elif(_pin==device_charger_voltage_3):
-            varentryWind.set(val)
-        elif(_pin==photo_Resistor):
-            varentryPhoto.set(val)
         
-    def getVariableText(_pin):
-        if(_pin==mosfet_1_pin):
-            varentryMosfet1.get()
-        elif(_pin==mosfet_2_pin):
-            varentryMosfet2.get()
-        elif(_pin==mosfet_3_pin):
-            varentryMosfet3.get()
-        elif(_pin==battery_voltage_pin):
-            varentryBattery.get()
-        elif(_pin==device_charger_voltage_1):
-            varentryTrafo.get()
-        elif(_pin==device_charger_voltage_2):
-            varentrySolar.get()
-        elif(_pin==device_charger_voltage_3):
-            varentryWind.get()
-        elif(_pin==photo_Resistor):
-            varentryPhoto.get()
-
-             
-    
     if (pinandPinMOde.get(pin)== "IsInput"):
         print("input")
         if(pinandPinMOde.get(pin) != prevpinandPinMOde.get(pin)):
@@ -2286,10 +2310,11 @@ entrySolarPanelVolt.grid(column =3, row =14)
 entryWindTurbineVolt.grid(column =3, row =16)
 entryPhotoreResistorVolt.grid(column =3, row =18)
 
-
+updatelabel = StringVar()
 def onPressProceed():
-    global PORTB, PORTC, PORTD, entryservoData, entrypwmData, servoData, pwmData 
-
+    global PORTB, PORTC, PORTD, entryservoData, entrypwmData, entryPORTB, entryPORTC, entryPORTD, servoData, pwmData, updatelabel, mosfet_1_pin, mosfet_2_pin, mosfet_3_pin, battery_voltage_pin, device_charger_voltage_1, device_charger_voltage_2, device_charger_voltage_3, photo_resistor 
+    print("process")
+    sleep(20)
     tempPORTB = PORTB
     tempPORTC = PORTC
     tempPORTD = PORTD
@@ -2307,35 +2332,44 @@ def onPressProceed():
             if (chkTempPinInOUTPUT(pin)):
                 if (pin>14):
                     if(intValue>0):
-                        entryPortC=setBit(entryPortC, pin-14)
+                        entryPORTC=setBit(entryPORTC, pin-14)
                     else:
-                        entryPortC=unsetBit(entryPortC, pin-14)
+                        entryPORTC=unsetBit(entryPORTC, pin-14)
                 elif(pin<8):
                     if(intValue>0):
-                        entryPortD=setBit(entryPortD, pin)
+                        entryPORTD=setBit(entryPORTD, pin)
                     else:
-                        entryPortD=unsetBit(entryPortD, pin)
+                        entryPORTD=unsetBit(entryPORTD, pin)
                 else:
                     if(intValue>0):
-                        entryPortB=setBit(entryPortB, pin-6)
+                        entryPORTB=setBit(entryPORTB, pin-6)
                     else:
-                        entryPortB=unsetBit(entryPortB, pin-6)
+                        entryPORTB=unsetBit(entryPORTB, pin-6)
             if (chkTempPinInPWM(pin)):
                 pwmValue = convertionToWritePWM(intValue)
                 entrypwmData[f'{pin}'] = pwmVale
     			
-    PORTC = entryPortC
-    PORTB = entryPortB
-    PORTD = entryPortD
+    PORTC = entryPORTC
+    PORTB = entryPORTB
+    PORTD = entryPORTD
     pwmData = entrypwmData
     servoData = entryservoData
 
-    if (sendBoardUddate==-1):
+    if (sendBoardUpdate()==-1):
+        print("board update-1")
+        sleep(20)
         PORTB = tempPORTB
         PORTC = tempPORTC
         PORTD = tempPORTD
         servoData = tempServoData
         pwmData = temppwmData
+        updatelabel.set("LAST INFORMATION WAS NOT SENT,  CONNECTION  NOT AVAILABLE")
+    else:
+        secs = time.time()
+        timehere= time.localtime(secs)
+        message=f'Last INFORMATION  WAS SENT AT= {timehere.tm_hour}:{timehere.tm_min}:{timehere.tm_seg}'
+        conectionStatus.configure(foreground = 'DeepSkyBlue2')
+        conectionText.set(message)
 
 proceedButton=ttk.Button(mainFrame,state='disabled', text="SEND UPDATE", command=onPressProceed)
 proceedButton.grid(column =4, row =1) 
@@ -2348,12 +2382,13 @@ ttk.Button(mainFrame, text="Print").grid(column =3, row =20)
 
 # Label for detected Board
 
-boardDetected = ttk.Label(mainFrame, textvariable = arduinoLabel,foreground = "lightseagreen")
+boardDetected = ttk.Label(mainFrame, textvariable = arduinoLabel,foreground='firebrick1')
 boardDetected.grid(column =5, row =20, sticky='w')  
 
-arduinoLabel
+# Label for last update
 
-
+lastUpdateLabel = ttk.Label(mainFrame, textvariable = updatelabel,foreground='firebrick1')
+lastUpdateLabel.grid(column =5, row =21, sticky='w') 
 
 # pending sample data appand on file and plot and print and eventually erase file
 def onPressPlot():
@@ -2361,7 +2396,7 @@ def onPressPlot():
   
 def onPressPrint():
   pass
-ttk.Label(mainFrame, text="Change of mode is attampted to be for test only f.e. wires or check correct analog output").grid(column =1,columnspan=5, row =21,  sticky='w')                            
+ttk.Label(mainFrame, text="Change of mode is attampted to be for test only f.e. wires or check analog output").grid(column =1,columnspan=5, row =21,  sticky='w')                            
 ttk.Label(mainFrame, text="Arduino only have three timers in complementary pins pairs so PWM must use only ONE of EACH PAIR FOR A SINGLE NON COMPLEMENTARY OUTPUT.").grid(column =1,columnspan=5, row =22, sticky='w')                            
 ttk.Label(mainFrame, text="History data save a day file with each charger voltage and light each 15 minutes sample ").grid(column =1,columnspan=5, row =23, sticky='w')                            
 ttk.Label(mainFrame, text="This data can be plotted for day, week, month or year").grid(column =1,columnspan=5, row =24, sticky='w')                            
@@ -2392,7 +2427,7 @@ def eventTimeFunction():
             else:
                 secs = time.time()
                 timehere= time.localtime(secs)
-                message=f'Last Update: {timehere.tm_hour} Hours :{timehere.tm_min} min.'
+                message=f'Last RECEIVED Update: {timehere.tm_hour}:{timehere.tm_min}:{timehere.tm_seg}'
                 conectionStatus.configure(foreground = 'DeepSkyBlue2')
                 conectionText.set(message)
 
