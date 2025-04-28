@@ -78,7 +78,7 @@ Servo myServo;
 
 int PC_CONTROL_STATE= LOW;
 
-const int PC_CONTROL_PIN= 6;
+const int PC_CONTROL_PIN= A6;
 
 const int PC_CONTROL_MODE= OUTPUT;
 
