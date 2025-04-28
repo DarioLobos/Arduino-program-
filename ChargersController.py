@@ -40,10 +40,10 @@ A6= 20
 A7= 21
 
 #ARDUINO PORTS IN ARDUINO PROGRAM .INO
-# const int PC_CONTROL_PIN= 6
-# const int mosfet_1_pin = A6 ;
+# const int PC_CONTROL_PIN= A6
+# const int mosfet_1_pin = 5 ;
 # const int mosfet_2_pin = 9 ; // digital pin can be written as analog
-# const int mosfet_3_pin = 10 ;  // digital pin can be written as analog
+# const int mosfet_3_pin = 11 ;  // digital pin can be written as analog
 # const int battery_voltage_pin= A3 ;
 # const int device_charger_voltage_1 = A0 ;
 # const int device_charger_voltage_2 = A1 ;  
