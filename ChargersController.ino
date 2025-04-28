@@ -226,6 +226,8 @@ uint8_t pwmRegisterB; // REGISTERS TO IDENTIFY EACH PWM PIN
 uint8_t pwmRegisterC;
 uint8_t pwmRegisterD;
 
+ uint8_t receivedAction=0; // TO STORAGE RECEIVED BYTE
+
 const char IS_SERVO= 20; // IDENTIFIER FOR SERVO
 
 uint8_t servoRegisterB; // REGISTERS TO IDENTIFY EACH SERVO PIN
@@ -307,6 +309,8 @@ for serial transmission is connected to pin 0 and 1 (RX,TX)
 #include <Adafruit_MCP23X17.h>
 #include <Wire.h>
 
+Adafruit_MCP23X17 mcp;
+
 # define MCP_PIN0 0  
 # define MCP_PIN1 1  
 # define MCP_PIN2 2
@@ -324,13 +328,17 @@ for serial transmission is connected to pin 0 and 1 (RX,TX)
 # define MCP_PIN14 14
 # define MCP_PIN15 15
 
+//#include <DS1307RTC.h>
+#include <DS1302.h>
+
 // DS1302:  CE pin    -> Arduino Digital 2
 //          I/O pin   -> Arduino Digital 3
 //          SCLK pin  -> Arduino Digital 4
 
+DS1302 rtc(2, 3, 4);  // Object from constructor Class for clock
 
-//#include <DS1307RTC.h>
-#include <DS1302.h>
+
+
 
 /* LCD CONTROL PINS THIS GOES HERE IN THE ARDUINO, keyPad WILL BE IN THE EXTENDER. 
  *  keyPad WILL HAVE LESS USAGE THAN LCD ALWAYS WORKING
@@ -436,20 +444,21 @@ const float VOLTS_FACTOR_IN_OP = 1 ;  // THIS IS A FACTOR TO AMPLIFY THE SIGNAL 
 
 #include <I2CKeyPad.h>
 
-
-
 const uint8_t keyPad_ADDRESS = 0x20; // address of MCP23017 chip on I2C bus PORT A. 
                                      // ARDUINO HAVE ONLY ONE IC2 PORT SO A0,A1 AND A2 IN EXTENDER GOES TO GROUND 
+
+
+I2CKeyPad keyPad(keyPad_ADDRESS);
 
 
 // initialize constant for pins to read voltages and mosfets
 // A4 and A5 ARE RESERVED FOR PIN EXTENDER BOARD, SERIAL PINS
 
-const int MOSFET_1_PIN = A6 ;
+const int MOSFET_1_PIN = 5 ;
 int mosfet1Signal=0; // signal to send to the mosfet; 
 const int MOSFET_2_PIN = 9 ; // digital pin can be written as analog
 int mosfet2Signal=0;
-const int MOSFET_3_PIN = 10 ;  // digital pin can be written as analog
+const int MOSFET_3_PIN = 11 ;  // digital pin can be written as analog
 int mosfet3Signal=0;
 
 const int BATTERY_VOLTAGE_PIN= A3 ;
@@ -465,7 +474,7 @@ const int PHOTO_RESISTOR = A7 ;
 
 
 // CHECK WHICH PINS ADMITS PWM USAGE
-int pinForPWM[]={3,5,6,9,10,11,14,15,16,17,18,19,20,21};
+int pinForPWM[]={3,5,6,9,10,11};
 
 // THESE ARE BITWISE FUNCTION NEEDED TO HANDLE DATA 
 // IN ORDER TO DO SIMILAR CODES IN PHYTON AND ARDUINO I WILL SET BITS AND COUNT WITH A LOCAL FUNCTION IN BOTH THE SAME
@@ -759,7 +768,7 @@ if (counterSend>0){
 
 // SEND ANALOG READ DATA
     
-    if(sendChar(CHRNULL)==-1)){
+    if(sendChar(CHRNULL)==-1){
         ++counterSend;
         closeSerial();
         sendStatus();
@@ -790,7 +799,7 @@ if (counterSend>0){
         return false;
         break;
                }
-            if (sendChar(byteLow)==-1{
+            if (sendChar(byteLow)==-1){
                  ++counterSend;
                 closeSerial();
                 sendStatus();
@@ -838,13 +847,13 @@ if (counterSend>0){
     
 //SEND DERVO INFO
 
-    if(sendChar(CHRNULL)==-1)){
+    if(sendChar(CHRNULL)==-1){
         ++counterSend;
         closeSerial();
         sendStatus();
         return false;
         }         
-    if(sendChar(IS_SERVO)==-1)){
+    if(sendChar(IS_SERVO)==-1){
         ++counterSend;
         closeSerial();
         sendStatus();
@@ -873,7 +882,7 @@ if (counterSend>0){
         sendStatus();
         return false;
         }
-if (sendChar(END)==-1)){
+  if (sendChar(END)==-1){
          ++counterSend;
         closeSerial();
         sendStatus();
@@ -909,7 +918,7 @@ if (sendChar(END)==-1)){
             
   for (int i=0; i<8 ;i++){
   prevArrayRead[i][0] = arrayRead[i][0];
-  prevArrayRead[i][1] = arrayRead[i]10];
+  prevArrayRead[i][1] = arrayRead[i][0];
   }
   
   for (int i=0; i<ROW ;i++){
@@ -1023,7 +1032,7 @@ counterRegisterServo = counterBitON(bufferRegisterServoD)+ counterBitON(bufferRe
 
 boolean doneReadPWM = false;
 
-if (receivedRawString[12]!=CHRNULL | receivedRawString[13]!=ISPWM){
+if (receivedRawString[12]!=CHRNULL | receivedRawString[13]!=IS_PWM){
          ++counterReceived;
         closeSerial();
         receiveData();
@@ -1064,7 +1073,7 @@ for(int i=14;i<65;++i){
   DDRD = bufferDDRD;
   PORTC = bufferPortC;
   DDRC = bufferDDRC;
-  PORTB = bufferPortB;
+  PORTB = bufferPortB | 3;
   DDRB = bufferDDRB;
 
   int placercounter=0;
@@ -1228,6 +1237,11 @@ int newAnalogRead(int pin){
 }
 
 // Function to display voltage and message
+
+// initialize the library by associating any needed LCD interface pin
+// with the arduino pin number it is connected to
+const int rs = 6, en = 7, d4 = 8, d5 = 10, d6 = 12, d7 = 13;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void lcdMessage (String message,int lenght, float newAnalogReadVolts ){
    
@@ -1544,15 +1558,7 @@ for (int i=0; i<ROW ;i++){
  for (int i=0; i<ROW ; ++i){
   prevpwmData[i]=0;
   prevservoData[i]=0;
-  uint8_t receivedAction=0;
  }
-
-DS1302 rtc(2, 3, 4);
-
-// initialize the library by associating any needed LCD interface pin
-// with the arduino pin number it is connected to
-const int rs = 12, en = 11, d4 = 8, d5 = 7, d6 = 6, d7 = 5;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 
 // initialize the PC control pin as an output:
@@ -1562,8 +1568,6 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
   rtc.halt(false);
   rtc.writeProtect(true);
   
-I2CKeyPad keyPad(keyPad_ADDRESS);
-
 char keymap[19] = "123A456B789C*0#DNF";  // N = NoKey, F = Fail
 
   Wire.begin( );
@@ -1581,7 +1585,6 @@ char keymap[19] = "123A456B789C*0#DNF";  // N = NoKey, F = Fail
   
 // BEGIN AND PIN ASSIGMENT IN MCP23017 
 
-Adafruit_MCP23X17 mcp;
 mcp.begin_I2C();
 
 /* KEY PAD PINS 
@@ -1597,14 +1600,14 @@ mcp.begin_I2C();
  *  MCP_PIN7 7        28
  */
 
-mcp.pinmode( MCP_PIN0, INPUT_PULLUP)
-mcp.pinmode( MCP_PIN1, INPUT_PULLUP)
-mcp.pinmode( MCP_PIN2, INPUT_PULLUP)
-mcp.pinmode( MCP_PIN3, INPUT_PULLUP)
-mcp.pinmode( MCP_PIN4, INPUT_PULLUP)
-mcp.pinmode( MCP_PIN5, INPUT_PULLUP)
-mcp.pinmode( MCP_PIN6, INPUT_PULLUP)
-mcp.pinmode( MCP_PIN7, INPUT_PULLUP)
+mcp.pinMode( MCP_PIN0, INPUT_PULLUP);
+mcp.pinMode( MCP_PIN1, INPUT_PULLUP);
+mcp.pinMode( MCP_PIN2, INPUT_PULLUP);
+mcp.pinMode( MCP_PIN3, INPUT_PULLUP);
+mcp.pinMode( MCP_PIN4, INPUT_PULLUP);
+mcp.pinMode( MCP_PIN5, INPUT_PULLUP);
+mcp.pinMode( MCP_PIN6, INPUT_PULLUP);
+mcp.pinMode( MCP_PIN7, INPUT_PULLUP);
 
 mcp.pinMode(MCP_PIN15, OUTPUT); // PIN FOR RESET
 
