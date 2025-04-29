@@ -1,6 +1,5 @@
 // IMPORTANT THESE ARE THE LIBRARIES USED ARE PLENTY WITH SIMILAR NAMES AND DIFFERENT FUNCTIONS 
-// RTC: (Find there DS1302.h etc)
-// https://github.com/TeraHz/Doser/tree/master
+// RTC: (Find there DS1302.h etc)// https://github.com/TeraHz/Doser/tree/master
 // MCP 23017:
 //https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 // IC2 keypad:
@@ -562,6 +561,7 @@ if (counterBoard>COM_ATTEMPTS){
 }
 
 if (counterBoard>0){
+initSerial();
 receivedAction= receiveChar();
 if((receivedAction==-1)|(receivedAction!=BOARD_INFO)){
   ++counterBoard;
@@ -671,6 +671,7 @@ boolean sendStatus() {
     }
 
 if (counterSend>0){
+  initSerial();
   receivedAction= receiveChar();
   if((receivedAction==-1)|(receivedAction!=SEND_STATUS)){
   ++counterSend;
@@ -969,7 +970,7 @@ AVAILABLE=false;
     return false;    
   }
   if (counterReceived>0){
-
+  initSerial();
   tempReceived=receiveChar();
     if (tempReceived ==-1){
          ++counterReceived;
