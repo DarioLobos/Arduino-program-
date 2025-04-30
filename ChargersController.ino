@@ -194,6 +194,13 @@ while ( UCSR0A & (1<<RXC0) ){
 
 }
 
+// THIS ARE THE SECONDS THAT THE PROGRAM UPDATE DATA FROM ARDUINO
+// IS IMPORTANT TO SYNC ARDUINO MUST HAVE SAME VALUE IN THIS VARIABLE.
+
+const int TIME_UPDATE = 1;
+
+
+
 const char SEND_STATUS=17; // THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
 
 
@@ -207,7 +214,6 @@ const char RECEIVED=23; // THIS IS THE IDENTIFIER FOR SEND OF DATA
  * THE PWM ARRAY AND ORDER IS PIN NUMBER 
  * SAME IS POR SERVO
  */
-
 const int IS_ANALOG_READ = 28; // IDENTIFIER FOR ANALOG READ PENDING FIND REGISTER
 
 const int ROW=24;
@@ -1151,9 +1157,28 @@ boolean listen_PC_Start(){
 initSerial();
 receivedAction= receiveChar();
 
-for(int i=0; i < COM_ATTEMPTS; ++i){
+unsigned long timetoUpdate = millis();
+
+unsigned long prevtimeUpdate = 0;
+
+unsigned long pastTime= timetoUpdate - prevtimeUpdate;
+
+if (pastTime <0){
+  pastTime= timetoUpdate; // can be done more precise with overflow value
+}
+
+int intpastTime= int(pastTime *1000*100); // 100 to increase precision
+
+while (intpastTime < (TIME_UPDATE*100) ){
+  prevtimeUpdate= millis();
+  pastTime= timetoUpdate - prevtimeUpdate;
+  intpastTime= int(pastTime *1000*100);
+  
+if (pastTime <0){
+  pastTime= timetoUpdate; // can be done more precise with overflow value
+}
+
   if (receivedAction==-1){
-    flush();
     receivedAction= receiveChar();
     AVAILABLE = false;
   }
@@ -1631,6 +1656,12 @@ mcp.pinMode(MCP_PIN15, OUTPUT); // PIN FOR RESET
 void loop(){
   
   while (PC_CONTROL_STATE == LOW) {
+
+    
+digitalWrite(MOSFET_1_PIN,HIGH);
+digitalWrite(MOSFET_2_PIN,HIGH);
+digitalWrite(MOSFET_3_PIN,HIGH);
+
     
 //-----------------------------------
 //Arduino program control

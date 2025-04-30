@@ -41,9 +41,9 @@ A7= 21
 
 #ARDUINO PORTS IN ARDUINO PROGRAM .INO
 # const int PC_CONTROL_PIN= A6
-# const int mosfet_1_pin = 5 ;
+# const int mosfet_1_pin = A6 ;
 # const int mosfet_2_pin = 9 ; // digital pin can be written as analog
-# const int mosfet_3_pin = 11 ;  // digital pin can be written as analog
+# const int mosfet_3_pin = 10 ;  // digital pin can be written as analog
 # const int battery_voltage_pin= A3 ;
 # const int device_charger_voltage_1 = A0 ;
 # const int device_charger_voltage_2 = A1 ;  
@@ -323,6 +323,11 @@ BOARD_INFO =6; # THIS IS TO SEND DATA OBTAINED FROM BOARD IDENTIFIER LIBRARY
 PC_REGISTERS_UPDATE = 14; # THIS IS TO SEND ALL THE REGISTERS AND DATA CHANGED FOR THE PC
 
 COM_ATTEMPTS=4;  # THIS IS THE LIMIT OF LOOPS THAT PROGRAM MUST DO TO TRY TO STABLISH COMMUNICATION BEFORE RAISE AN ERROR 
+
+TIME_UPDATE =1  # THIS ARE THE SECONDS THAT THE PROGRAM UPDATE DATA FROM ARDUINO
+                # IS IMPORTANT TO SYNC ARDUINO MUST HAVE SAME VALUE IN THIS VARIABLE.
+
+TIME_SAVE = 15 # THIS ARE THE MINUTES TO SAVE THE FILE DATA. 
 
 AVAILABLE = True;  # THIS IS THE FLAG TO DETERMINE UNAVAILABLE STATE;
 
@@ -855,7 +860,6 @@ def scanPort():
     arduinoDict = dict()
     portlist = serial.tools.list_ports.comports()
     d = len(portlist)
-    sleep(20)
     if (d >0):
         while(True):
             if (countport < d):
@@ -864,7 +868,6 @@ def scanPort():
                     try: 
                         serialScan =serial.Serial(port=stringdevice,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
                         arduinoDict = receiveBoardInfo(serialScan)
-                        sleep(20)
                     except:
                         countport= countport +1
                         scanPort()
@@ -1026,6 +1029,18 @@ chkSolarState= BooleanVar(value= False)
 chkWindState= BooleanVar(value= False)
 chkPhotoState= BooleanVar(value= False)
 
+# Text variable for entries, must be initialized first becaused are called by functions bellow
+
+varentryMosfet1 = StringVar()
+varentryMosfet2 = StringVar()
+varentryMosfet3 = StringVar()
+varentryBattery = StringVar()
+varentryTrafo = StringVar()
+varentrySolar = StringVar()
+varentryWind = StringVar()
+varentryPhoto = StringVar()
+
+
 def controlBoardPBtn():
     global controlBoardPBtn, PORTD, PC_CONTROL_STATE, chkMosfet1, chkMosfet2, chkMosfet3, chkBatteryVolt, chkTrafoVolt, chkSolarPanelVolt, chkWindTurbineVolt, chkWindTurbineVolt, chkPhotoreResistorVolt, proceedButton, buttonMos1, buttonMos2, buttonMos3, batteryVolt, trafoVolt, solarVolt, windVolt, photoResistor, varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto, entryPORTB, PORTB, entryPORTC, PORTC, entryPORTD, PORTD, entryDDRB, DDRB, entryDDRC, DDRC, entryDDRD, DDRD, chkMos1State, chkMos2State, chkMos3State, chkBatState, chkTrafoState, chkSolarState, chkWindState, chkPhotoState, entryMosfet1, entryMosfet2, entryBatteryVolt, entryTrafoVolt, entrySolarPanelVolt, entryWindTurbineVolt, entryPhotoreResistorVolt, entrydigitalOutputB, pwmRegisterB, servoRegisterB, DDRB, entrydigitalOutputC, pwmRegisterC, servoRegisterC, DDRC, entrydigitalOutputD, pwmRegisterD, servoRegister, DDRD, entrypwmRegisterB, pwmRegisterB, entrypwmRegisterC, pwmRegisterC, entrypwmRegisterD, pwmRegisterD, entryservoRegisterB, servoRegisterB, entryservoRegisterC, servoRegisterC, entryservoRegisterD, servoRegisterD, buttonMos2Stg, buttonMos3Stg, batteryVoltStg, trafoVoltStg, solarVoltStg, windVoltStg, photoResistorStg
 
@@ -1100,14 +1115,14 @@ def controlBoardPBtn():
         solarVolt.state(['disabled'])
         windVolt.state(['disabled'])
         photoResistor.state(['disabled'])
-        varentryMosfet1= None
-        varentryMosfet2= None
-        varentryMosfet3= None
-        varentryBattery= None
-        varentryTrafo= None
-        varentrySolar= None
-        varentryWind= None
-        varentryPhoto= None
+        varentryMosfet1.set("")
+        varentryMosfet2.set("")
+        varentryMosfet3.set("")
+        varentryBattery.set("")
+        varentryTrafo.set("")
+        varentrySolar.set("")
+        varentryWind.set("")
+        varentryPhoto.set("")
         entryPORTB=PORTB
         entryPORTC=PORTC
         entryPORTD=PORTD
@@ -1309,8 +1324,10 @@ def textToButton(text,pin):
       photoResistorStg.set(text)
 
 def setOutput(pin):
-    global top, entryDDRB, entryDDRC, entryDDRD, entrydigitalOutputD, entrydigitalOutputB,  entrydigitalOutputC, entryservoRegisterD, entrypwmRegisterD, entryservoRegisterB, entrypwmRegisterB, entryservoRegisterC, entrypwmRegisterC
+    global top, entryDDRB, entryDDRC, entryDDRD, entrydigitalOutputD, entrydigitalOutputB,  entrydigitalOutputC, entryservoRegisterD, entrypwmRegisterD, entryservoRegisterB, entrypwmRegisterB, entryservoRegisterC, entrypwmRegisterC,  , varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto
+
     pin = int(pin)
+
     if (pin<8):
         entryDDRD= setBit(entryDDRD,pin)
         entrydigitalOutputD = setBit(entrydigitalOutputD,pin)
@@ -1333,47 +1350,47 @@ def setOutput(pin):
     top.destroy()
     textToButton("OUTPUT",pin)
     if (pin== mosfet_1_pin):
-        varentryMosfet1= ""
+        varentryMosfet1.set("")
         entryMosfet1.state(['disabled'])
         chkMos1State.set(False)
         chkMosfet1.state(['!disabled'])
 
     elif(pin== mosfet_2_pin):
-        varentryMosfet2= ""
+        varentryMosfet2.set("")
         entryMosfet2.state(['disabled'])
         chkMos2State.set(False)
         chkMosfet2.state(['!disabled'])
             
     elif(pin== mosfet_3_pin):
-        varentryMosfet3= ""
+        varentryMosfet3.set("")
         entryMosfet3.state(['disabled'])
         chkMos3State.set(False)
         chkMosfet3.state(['!disabled'])
             
     elif(pin== battery_voltage_pin):
-        varentryBattery= ""
+        varentryBattery.set("")
         entryBatteryVolt.state(['disabled'])
         chkBatState.set(False)
         chkBatteryVolt.state(['!disabled'])
             
     elif(pin== device_charger_voltage_1):
-            varentryTrafo= ""
+            varentryTrafo.set("")
             entryTrafoVolt.state(['disabled'])
             chkTrafoState.set(False)
             chkTrafoVolt.state(['!disabled'])
     elif(pin== device_charger_voltage_2):
-            varentrySolar= ""
+            varentrySolar.set("")
             entrySolarPanelVolt.state(['disabled'])
             chkSolarState.set(False)
             chkSolarPanelVolt.state(['!disabled'])
             
     elif(pin== device_charger_voltage_3):
-            varentryWind= ""
+            varentryWind.set("")
             entryWindTurbineVolt.state(['disabled'])
             chkWindState.set(False)
             chkWindTurbineVolt.state(['!disabled'])
     elif(pin== photo_resistor): 
-            varentryPhoto= ""
+            varentryPhoto.set("")
             entryPhotoreResistorVolt.state(['disabled'])
             chkPhotoState.set(False)
             chkPhotoreResistorVolt.state(['!disabled'])
@@ -1381,8 +1398,10 @@ def setOutput(pin):
 setOutput_wrapper = root.register(setOutput)
 
 def setPWM(pin):
-    global top, entryDDRB, entryDDRC, entryDDRD, entrypwmRegisterD, entrypwmRegisterB,  entrypwmRegisterC, entryservoRegisterD, entrydigitalOutputD, entryservoRegisterB, entrydigitalOutputB, entryservoRegisterC, entrydigitalOutputC
+    global top, entryDDRB, entryDDRC, entryDDRD, entrypwmRegisterD, entrypwmRegisterB,  entrypwmRegisterC, entryservoRegisterD, entrydigitalOutputD, entryservoRegisterB, entrydigitalOutputB, entryservoRegisterC, entrydigitalOutputC, varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto
+
     pin = int(pin)
+
     if (pin<8):
         entryDDRD= setBit(entryDDRD,pin)
         entrypwmRegisterD = setBit(entrypwmRegisterD,pin)
@@ -1405,47 +1424,47 @@ def setPWM(pin):
     top.destroy()
     textToButton("PWM",pin)
     if (pin== mosfet_1_pin):
-        varentryMosfet1= None
+        varentryMosfet1.set("")
         entryMosfet1.state(['disabled'])
         chkMos1State.set(False)
         chkMosfet1.state(['!disabled'])
 
     elif(pin== mosfet_2_pin):
-        varentryMosfet2= None
+        varentryMosfet2.set("")
         entryMosfet2.state(['disabled'])
         chkMos2State.set(False)
         chkMosfet2.state(['!disabled'])
             
     elif(pin== mosfet_3_pin):
-        varentryMosfet3= None
+        varentryMosfet3.set("")
         entryMosfet3.state(['disabled'])
         chkMos3State.set(False)
         chkMosfet3.state(['!disabled'])
             
     elif(pin== battery_voltage_pin):
-        varentryBattery= None
+        varentryBattery.set("")
         entryBatteryVolt.state(['disabled'])
         chkBatState.set(False)
         chkBatteryVolt.state(['!disabled'])
             
     elif(pin== device_charger_voltage_1):
-            varentryTrafo= None
+            varentryTrafo.set("")
             entryTrafoVolt.state(['disabled'])
             chkTrafoState.set(False)
             chkTrafoVolt.state(['disabled'])
     elif(pin== device_charger_voltage_2):
-            varentrySolar= None
+            varentrySolar.set("")
             entrySolarPanelVolt.state(['disabled'])
             chkSolarState.set(False)
             chkSolarPanelVolt.state(['!disabled'])
             
     elif(pin== device_charger_voltage_3):
-            varentryWind= None
+            varentryWind.set("")
             entryWindTurbineVolt.state(['disabled'])
             chkWindState.set(False)
             chkWindTurbineVolt.state(['!disabled'])
     elif(pin== photo_resistor): 
-            varentryPhoto= None
+            varentryPhoto.set("")
             entryPhotoreResistorVolt.state(['disabled'])
             chkPhotoState.set(False)
             chkPhotoreResistorVolt.state(['!disabled'])
@@ -1453,7 +1472,8 @@ def setPWM(pin):
 setPWM_wrapper = root.register(setPWM)
 
 def setServo(pin):
-    global top,entryDDRB, entryDDRC, entryDDRD, entryservoRegisterD, entryservoRegisterB,  entryservoRegisterC, entrypwmRegisterD, entrydigitalOutputD , entrypwmRegisterB, entrydigitalOutputB, entrypwmRegisterC, entrydigitalOutputC
+    global top,entryDDRB, entryDDRC, entryDDRD, entryservoRegisterD, entryservoRegisterB,  entryservoRegisterC, entrypwmRegisterD, entrydigitalOutputD , entrypwmRegisterB, entrydigitalOutputB, entrypwmRegisterC, entrydigitalOutputC, varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto
+
     pin = int(pin)
     if (pin<8):
         entryDDRD= setBit(entryDDRD,pin)
@@ -1477,19 +1497,19 @@ def setServo(pin):
     top.destroy()
     textToButton("SERVO",pin)
     if (pin== mosfet_1_pin):
-        varentryMosfet1= None
+        varentryMosfet1.set("")
         entryMosfet1.state(['disabled'])
         chkMos1State.set(False)
         chkMosfet1.state(['!disabled'])
 
     elif(pin== mosfet_2_pin):
-        varentryMosfet2= None
+        varentryMosfet2.set("")
         entryMosfet2.state(['disabled'])
         chkMos2State.set(False)
         chkMosfet2.state(['!disabled'])
             
     elif(pin== mosfet_3_pin):
-        varentryMosfet3= None
+        varentryMosfet3.set("")
         entryMosfet3.state(['disabled'])
         chkMos3State.set(False)
         chkMosfet3.state(['!disabled'])
@@ -1501,23 +1521,23 @@ def setServo(pin):
         chkBatteryVolt.state(['!disabled'])
             
     elif(pin== device_charger_voltage_1):
-            varentryTrafo= None
+            varentryTrafo.set("")
             entryTrafoVolt.state(['disabled'])
             chkTrafoState.set(False)
             chkTrafoVolt.state(['!disabled'])
     elif(pin== device_charger_voltage_2):
-            varentrySolar= None
+            varentrySolar.set("")
             entrySolarPanelVolt.state(['disabled'])
             chkSolarState.set(False)
             chkSolarPanelVolt.state(['!disabled'])
             
     elif(pin== device_charger_voltage_3):
-            varentryWind= None
+            varentryWind.set("")
             entryWindTurbineVolt.state(['disabled'])
             chkWindState.set(False)
             chkWindTurbineVolt.state(['!disabled'])
     elif(pin== photo_resistor): 
-            varentryPhoto= None
+            varentryPhoto.set("")
             entryPhotoreResistorVolt.state(['disabled'])
             chkPhotoState.set(False)
             chkPhotoreResistorVolt.state(['!disabled'])
@@ -1547,47 +1567,47 @@ def setInput(pin):
     top.destroy()
     textToButton("INPUT",pin)
     if (pin== mosfet_1_pin):
-        varentryMosfet1= ""
+        varentryMosfet1.set("")
         entryMosfet1.state(['disabled'])
         chkMos1State.set(False)
         chkMosfet1.state(['disabled'])
 
     elif(pin== mosfet_2_pin):
-        varentryMosfet2= ""
+        varentryMosfet2.set("")
         entryMosfet2.state(['disabled'])
         chkMos2State.set(False)
         chkMosfet2.state(['disabled'])
             
     elif(pin== mosfet_3_pin):
-        varentryMosfet3= ""
+        varentryMosfet3.set("")
         entryMosfet3.state(['disabled'])
         chkMos3State.set(False)
         chkMosfet3.state(['disabled'])
             
     elif(pin== battery_voltage_pin):
-        varentryBattery= ""
+        varentryBattery.set("")
         entryBatteryVolt.state(['disabled'])
         chkBatState.set(False)
         chkBatteryVolt.state(['disabled'])
             
     elif(pin== device_charger_voltage_1):
-        varentryTrafo= ""
+        varentryTrafo.set("")
         entryTrafoVolt.state(['disabled'])
         chkTrafoState.set(False)
         chkTrafoVolt.state(['disabled'])
     elif(pin== device_charger_voltage_2):
-        varentrySolar= ""
+        varentrySolar.set("")
         entrySolarPanelVolt.state(['disabled'])
         chkSolarState.set(False)
         chkSolarPanelVolt.state(['disabled'])
             
     elif(pin== device_charger_voltage_3):
-        varentryWind= ""
+        varentryWind.set("")
         entryWindTurbineVolt.state(['disabled'])
         chkWindState.set(False)
         chkWindTurbineVolt.state(['disabled'])
     elif(pin== photo_resistor): 
-            varentryPhoto= ""
+            varentryPhoto.set("")
             entryPhotoreResistorVolt.state(['disabled'])
             chkPhotoState.set(False)
             chkPhotoreResistorVolt.state(['disabled'])
@@ -1596,6 +1616,9 @@ setInput_wrapper = root.register(setInput)
 
 def setARead(pin):
 
+    global top, entryDDRB, entryDDRC, entryDDRD, varentryMosfet1, chkMos1State, chkMosfet1, varentryMosfet2, chkMos2State, chkMosfet2, varentryMosfet3, chkMos3State, chkMosfet3, varentryBattery, chkBatState, chkBatteryVolt, varentryTrafo, chkTrafoState, chkTrafoVolt, varentrySolar, chkSolarState, chkSolarPanelVolt, varentryWind, chkWindState, chkWindTurbineVolt, varentryPhoto, chkPhotoState, chkPhotoreResistorVolt, entryMosfet1, entryMosfet2, entryMosfet3, entryBatteryVolt, entryTrafoVolt, entrySolarPanelVolt, entryWindTurbineVolt, entryPhotoreResistorVolt, entryservoRegisterD, entrypwmRegisterD, entrydigitalOutputD, entryservoRegisterB, entrypwmRegisterB, entrydigitalOutputB, entrypwmRegisterC, entrydigitalOutputC
+    pin = int(pin)
+    
     if (pin<14):
          messagebox.showwarning(title='Invalid imput', message="Analog Read only is possible in Analog Pins A0 to A7 (14-21)")
     else:
@@ -1606,36 +1629,36 @@ def setARead(pin):
 
         textToButton("INPUT",pin)
         if (pin== mosfet_1_pin):
-            varentryMosfet1= ""
+            varentryMosfet1.set("")
             entryMosfet1.state(['disabled'])
             chkMos1State.set(False)
             chkMosfet1.state(['disabled'])
 
         elif(pin== mosfet_2_pin):
-            varentryMosfet2= ""
+            varentryMosfet2.set("")
             entryMosfet2.state(['disabled'])
             chkMos2State.set(False)
             chkMosfet2.state(['disabled'])
             
         elif(pin== mosfet_3_pin):
-            varentryMosfet3= ""
+            varentryMosfet3.set("")
             entryMosfet3.state(['disabled'])
             chkMos3State.set(False)
             chkMosfet3.state(['disabled'])
             
         elif(pin== battery_voltage_pin):
-            varentryBattery= ""
+            varentryBattery.set("")
             entryBatteryVolt.state(['disabled'])
             chkBatState.set(False)
             chkBatteryVolt.state(['disabled'])
             
         elif(pin== device_charger_voltage_1):
-            varentryTrafo= ""
+            varentryTrafo.set("")
             entryTrafoVolt.state(['disabled'])
             chkTrafoState.set(False)
             chkTrafoVolt.state(['disabled'])
         elif(pin== device_charger_voltage_2):
-            varentrySolar= ""
+            varentrySolar.set("")
             entrySolarPanelVolt.state(['disabled'])
             chkSolarState.set(False)
             chkSolarPanelVolt.state(['disabled'])
@@ -1646,7 +1669,7 @@ def setARead(pin):
             chkWindState.set(False)
             chkWindTurbineVolt.state(['disabled'])
         elif(pin== photo_resistor): 
-            varentryPhoto= ""
+            varentryPhoto.set("")
             entryPhotoreResistorVolt.state(['disabled'])
             chkPhotoState.set(False)
             chkPhotoreResistorVolt.state(['disabled'])
@@ -2022,17 +2045,6 @@ chkWindTurbineVolt.grid(column =4, row =16)
 
 chkPhotoreResistorVolt= ttk.Checkbutton(mainFrame, command= enablerPhoto, state= 'disabled', variable=chkPhotoState,onvalue=True, offvalue=False,style = 'Brigther.TCheckbutton')
 chkPhotoreResistorVolt.grid(column =4, row =18)
-
-# Text variable for entries, must be initialized first becaused are called by functions bellow
-
-varentryMosfet1 = StringVar()
-varentryMosfet2 = StringVar()
-varentryMosfet3 = StringVar()
-varentryBattery = StringVar()
-varentryTrafo = StringVar()
-varentrySolar = StringVar()
-varentryWind = StringVar()
-varentryPhoto = StringVar()
 
 
 #Validation the entry with re numbers 1 digit . 0 to 3 digits 
@@ -2436,12 +2448,12 @@ def eventTimeFunction():
     elapsedtimeData =  nexttimer - starttimerData
     elapsedtimeSave =   nexttimer - starttimerSave
     print(elapsedtimeData)
-    if ((int(elapsedtimeData*1000)) > (int(0.5*60)*1000)):  # * 1000 to improve precision
+    if ((int(elapsedtimeData*1000)) > (int(TIME_UPDATE)*1000)):  # * 1000 to improve precision
         print("ready if 1")
         #root.after_idle(ifreceiveData)
         ifreceiveData()
         starttimerData = time.perf_counter()
-        if (int(elapsedtimeSave*1000) > ((1*60)*1000)):
+        if (int(elapsedtimeSave*1000) > ((TIME_SAVE*60)*1000)):
             secs = time.time()
             timehere= time.localtime(secs)
             timestamp= f'{timehere.tm_year}{timehere.tm_mon}{timehere.tm_mday}{timehere.tm_hour}{timehere.tm_min}'
