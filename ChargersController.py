@@ -336,6 +336,7 @@ attempt_counter=0
 def receiveBoardInfo(serialscan):
     print("BoardInfo")
     global attempt_counter    
+    starttimer = time.perf_counter() 
 
     if (attempt_counter>COM_ATTEMPTS):
         AVAILABLE=False
@@ -350,11 +351,20 @@ def receiveBoardInfo(serialscan):
         serialscan.open()
         serialscan.write(BOARD_INFO)
         answer_sending = ser.read(1)
-        if(answer_sending!=BOARD_INFO):
-            AVAILABLE=False
-            serialscan.close()
-            receiveBoardInfo(serialscan)
-            return None
+        while(True):
+            nexttimer = time.perf_counter()
+            elapsedtime =  nexttimer - starttimer
+            serialscan.write(BOARD_INFO)
+            answer_sending = ser.read(1)
+            if (answer_sending==BOARD_INFO):
+                AVAILABLE=True
+                break
+            if ((int(elapsedtime*1000)) > (int(TIME_UPDATE)*1000)):  # * 1000 to improve precision
+                AVAILABLE=False
+                serialscan.close()
+                receiveBoardInfo(serialscan)
+                return None
+                break;
     except:
         print("execpt")
         AVAILABLE=False
@@ -430,27 +440,34 @@ def receiveData():
     counterRegisterPWM=0
     counterRegisterServo=0
 
-    attempt_counter= attempt_counter +1 
+    attempt_counter= attempt_counter +1
+
+    starttimer = time.perf_counter() 
 
     try:
         print("try")
         ser.open()
         print(f'{(attempt_counter>COM_ATTEMPTS)}')
         if (attempt_counter>COM_ATTEMPTS):
-                print("exit try")
+                print("exit try COM ATTEMPY")
                 ser.close()
                 return -1
-                print("after return")
-        print("after open")
-        ser.write(SEND_STATUS)
-        print("attempt:" + f'{attempt_counter}')
-        print("COM_:" + f'{COM_ATTEMPTS}')      
-        print("after write")
-        if((ser.read(1)!=SEND_STATUS)& (attempt_counter<=COM_ATTEMPTS)):
-            AVAILABLE=False            
-            ser.close()
-            receiveData()
-            return -1            
+        while(True):
+            print("while ser writw")
+            ser.write(SEND_STATUS)
+            nexttimer = time.perf_counter()
+            elapsedtime =  nexttimer - starttimer
+            if((ser.read(1)==SEND_STATUS)):
+                AVAILABLE= True
+                break;
+            if ((int(elapsedtime*1000)) > (int(TIME_UPDATE)*1000)):  # * 1000 to improve precision
+                AVAILABLE=False            
+                ser.close()
+                receiveData()
+                return -1
+                break;
+            AVAILABLE=False
+        
     except:
         print("except")
         attempt_counter= attempt_counter + 1 
@@ -631,18 +648,26 @@ def sendBoardUpdate():
         print("Comattempt")
 
     attempt_counter = attempt_counter + 1
-
+    starttimer = time.perf_counter() 
 
     try:
         ser.open()
-        ser.write(PC_REGISTERS_UPDATE)
-        resivedAction=ser.read(1)
-        while (receivedAction==WAIT):
-            pass
-        while (receivedAction!=PC_REGISTERS_UPDATE):
-            ser.close()
-            sendBoardUpdate()
-            return -1
+
+        while(True):
+                ser.write(PC_REGISTERS_UPDATE)
+                print("write PCREGISTER UPDATE")
+                resivedAction=ser.read(1)
+                nexttimer = time.perf_counter()
+                elapsedtime =  nexttimer - starttimer
+                if(receivedAction==PC_REGISTERS_UPDATE):
+                        AVAILABLE= True
+                        break
+                if((int(elapsedtime*1000)) > (int(TIME_UPDATE)*1000)): # * 1000 to improve precision
+                        ser.close()
+                        sendBoardUpdate()
+                        return -1
+                        break
+                AVAILABLE= False
     except:
             ser.close()
             sendBoardUpdate()
@@ -651,7 +676,7 @@ def sendBoardUpdate():
         AVAILABLE=True
 
     if (attempt_counter>COM_ATTEMPTS):
-        print("exit finally")
+        print("COM ATTMPT IF")
         ser.close()
         attempt_counter=0
         return -1
@@ -1324,7 +1349,7 @@ def textToButton(text,pin):
       photoResistorStg.set(text)
 
 def setOutput(pin):
-    global top, entryDDRB, entryDDRC, entryDDRD, entrydigitalOutputD, entrydigitalOutputB,  entrydigitalOutputC, entryservoRegisterD, entrypwmRegisterD, entryservoRegisterB, entrypwmRegisterB, entryservoRegisterC, entrypwmRegisterC,  , varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto
+    global top, entryDDRB, entryDDRC, entryDDRD, entrydigitalOutputD, entrydigitalOutputB,  entrydigitalOutputC, entryservoRegisterD, entrypwmRegisterD, entryservoRegisterB, entrypwmRegisterB, entryservoRegisterC, entrypwmRegisterC, varentryMosfet1, varentryMosfet2, varentryMosfet3, varentryBattery, varentryTrafo, varentrySolar, varentryWind, varentryPhoto
 
     pin = int(pin)
 
@@ -2325,7 +2350,7 @@ entryPhotoreResistorVolt.grid(column =3, row =18)
 updatelabel = StringVar()
 def onPressProceed():
     global PORTB, PORTC, PORTD, entryservoData, entrypwmData, entryPORTB, entryPORTC, entryPORTD, servoData, pwmData, updatelabel, mosfet_1_pin, mosfet_2_pin, mosfet_3_pin, battery_voltage_pin, device_charger_voltage_1, device_charger_voltage_2, device_charger_voltage_3, photo_resistor 
-    print("process")
+    print("proceedButton")
     sleep(20)
     tempPORTB = PORTB
     tempPORTC = PORTC
@@ -2443,13 +2468,10 @@ def eventTimeFunction():
                 conectionStatus.configure(foreground = 'DeepSkyBlue2')
                 conectionText.set(message)
 
-    print("selectedport = " + arduinoPort)
     nexttimer = time.perf_counter()
     elapsedtimeData =  nexttimer - starttimerData
     elapsedtimeSave =   nexttimer - starttimerSave
-    print(elapsedtimeData)
     if ((int(elapsedtimeData*1000)) > (int(TIME_UPDATE)*1000)):  # * 1000 to improve precision
-        print("ready if 1")
         #root.after_idle(ifreceiveData)
         ifreceiveData()
         starttimerData = time.perf_counter()
@@ -2457,7 +2479,6 @@ def eventTimeFunction():
             secs = time.time()
             timehere= time.localtime(secs)
             timestamp= f'{timehere.tm_year}{timehere.tm_mon}{timehere.tm_mday}{timehere.tm_hour}{timehere.tm_min}'
-            print(timestamp)
             pass  # here will be file data WRITE FILE append first time  stamp next line each 3 voltage readings if not open open, 'a' etc 
             starttimerSave = time.perf_counter()
     root.after((200), eventTimeFunction)
