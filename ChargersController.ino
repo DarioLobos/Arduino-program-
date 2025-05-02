@@ -85,7 +85,7 @@ const int PC_CONTROL_MODE= OUTPUT;
  
  
  
- //-----------------SERIAL TRANSFER PART -----------------
+  //-----------------SERIAL TRANSFER PART -----------------
 
 /* THIS CODE IS FROM THE CHIP ATMEGA DATASHEET
  ^ UBRROH, UBRR0H ARE REGISTERS FOR BAUTRATE
@@ -109,8 +109,9 @@ const int PC_CONTROL_MODE= OUTPUT;
 #define BAUDRATE 9600
 #define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) -1)   
 
+// PARITY NEEDS MANUAL CONFIGURATION OF COMPUTER CONTROLLER, TO AVOID THIS I CHOOSE NONE PARITY
 #define ASYNCHRONOUS (0<<UMSEL00)
-#define PARITY_MODE (2<<UPM00) // EVEN PARITY MODE,  DISSABLED=0 ODD=3
+#define PARITY_MODE (0<<UPM00) // NON PARITY MODE,  EVEN=2 ODD=3
 #define STOP_BIT (0<<USBS0) // ONE STOP BIT, TWO STOP BITS =1
 #define DATA_BIT (3<<UCSZ00) // EIGHT BITS, FIVE BITS=0, SIX BITS=1, SEVEN BITS =2
 
@@ -122,59 +123,87 @@ void initSerial(void){
  * BOTH POSITIONS ARE SER TO 1 IN THE OR STATEMENT 
  */
  // THIS ENABLES RECEIVER AND TRANSMITTER
-  UCSR0B = (1<<RXEN0) | (1<<RXEN0);
+  UCSR0B = (1<<RXEN0) | (1<<TXEN0);
   
 // ALL THE FLAGS DEFINED TO SETTING REGISTER UCSR0C
   UCSR0C = ASYNCHRONOUS | PARITY_MODE | STOP_BIT | DATA_BIT  ;
   
   } 
 
-// IS CONVENIENT USE THEM WITH TRY TO WHEN ARE USED AND IF FAIL HAPPENS WILL TRY AGAIN IN NEXT LOOP WITHOUT EXCEPTION
-// I USE INT TO CAN THROW A -1 IN CASE OF ERROR WHEN IS RECEIVED MUST BE CHANGED TO UNSIGNED CHAR OR UINT8_T 
+// THIS ARE THE SECONDS THAT THE PROGRAM UPDATE DATA FROM ARDUINO
+// IS IMPORTANT TO SYNC ARDUINO MUST HAVE SAME VALUE IN THIS VARIABLE.
+// IN THIS CASE DEFINE TIMEOUT
+
+const int TIME_UPDATE = 1;
 
 int receiveChar(){
+
+unsigned long timetoUpdate = millis();
+
+unsigned long prevtimeUpdate = 0;
+
+unsigned long pastTime; 
+
+int intpastTime;
+  
   int attemps_with_delay=5;
   int counter=0;
-  while(!(UCSR0A & (1<<RXC0))){
-    delay(5);
-    if (attemps_with_delay<counter){
-      return -1; 
-    }
-++ counter;
-}
+  while((UCSR0A & (1<<RXC0))==0){
+      prevtimeUpdate= millis();
+      pastTime= timetoUpdate - prevtimeUpdate;
+      if (pastTime <0){
+        pastTime=4294967295-prevtimeUpdate + timetoUpdate; // overflow value - previous time + time from cero to present
+      }
+      intpastTime= int(pastTime*100/1000); // 100 to increase precision
+      if(intpastTime > (TIME_UPDATE*100) ){
+        return -1;
+        break;
+        }
 
-  while((UCSR0A & (1<<RXC0))){
+      }
     
-  if ( UCSR0A & (1<<4)|(1<<3)|(1<<2) ){   // 4= FRAME ERROR 3= OVERRUN ERROR 2= PARITY ERROR
-return -1;
-}
+//  if ( UCSR0A & (1<<4)|(1<<3)|(1<<2) ){   // 4= FRAME ERROR 3= OVERRUN ERROR 2= PARITY ERROR
+//return -1;
+//}
   return UDR0;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
 }
-}
-
-
 
 int sendChar(uint8_t data){
-  int attemps_with_delay=5;
-  int counter=0;
-  while(!(UCSR0A & (1<<RXC0))){
-    delay(5);
-    if (attemps_with_delay<counter){
-      return -1; 
-++ counter;
-    }
-  }
-  while((UCSR0A & (1<<UDRE0))){
+
+  unsigned long timetoUpdate = millis();
+
+unsigned long prevtimeUpdate = 0;
+
+unsigned long pastTime; 
+
+int intpastTime;
+
+  while((UCSR0A & (1<<UDRE0))==0){
+      prevtimeUpdate= millis();
+      pastTime= timetoUpdate - prevtimeUpdate;
+      if (pastTime <0){
+        pastTime=4294967295-prevtimeUpdate + timetoUpdate; // overflow value - previous time + time from cero to present
+      }
+      intpastTime= int(pastTime*100/1000); // 100 to increase precision
+      if(intpastTime > (TIME_UPDATE*100) ){
+        return -1;
+        break;
+        }
+
+      }
   UDR0= data;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
   return 1;
 }
-}
 
 
-int sendString(char *StringPtr){
+
+int sendString(String literal){
+  
+  char* StringPtr = literal[0];
   while (*StringPtr != 0x00){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
     if (sendChar(*StringPtr)==-1){
       return -1;
+    StringPtr++;
     }    
   }
   return 1;
@@ -198,10 +227,6 @@ while ( UCSR0A & (1<<RXC0) ){
 
 }
 
-// THIS ARE THE SECONDS THAT THE PROGRAM UPDATE DATA FROM ARDUINO
-// IS IMPORTANT TO SYNC ARDUINO MUST HAVE SAME VALUE IN THIS VARIABLE.
-
-const int TIME_UPDATE = 1;
 
 
 
@@ -567,21 +592,26 @@ boolean boardInfo(){
 
 AVAILABLE= false;
 
-while(true){
-
 if (counterBoard>COM_ATTEMPTS){
   AVAILABLE=false;
   counterBoard=0;
   return false;
 }
-}  
+
+  
 if(sendChar(BOARD_INFO)==-1){
   ++counterBoard;
   listen_PC_Start();
   return false;
 }
 
-if(sendString(BoardIdentify::type)==-1){
+String type = String(BoardIdentify::type);
+
+if (sizeof(type)==0){
+  type="N.A.";
+}
+
+if(sendString(type)==-1){
   ++counterBoard;
   listen_PC_Start();
   return false;
@@ -591,7 +621,12 @@ if(sendChar(char('\n'))==-1){
   listen_PC_Start();
   return false;
 }
-if(sendString(BoardIdentify::make)==-1){
+String make = BoardIdentify::make;
+ if (sizeof(make)==0){
+  make="N.A,";
+}
+
+if(sendString(make)==-1){
   ++counterBoard;
   listen_PC_Start();      
   return false;
@@ -601,7 +636,13 @@ if(sendChar(char('\n'))==-1){
   listen_PC_Start();
   return false;
 }
-if(sendString(BoardIdentify::model)==-1){
+
+String model = BoardIdentify::model;
+if (sizeof(model)==0){
+  model ="N.A,";
+}
+
+if(sendString(model)==-1){
   ++counterBoard;
   listen_PC_Start();
   return false;
@@ -611,7 +652,13 @@ if(sendChar(char('\n'))==-1){
 listen_PC_Start();
 return false;
 }
-if(sendString(BoardIdentify::mcu)==-1){
+
+String mcu = BoardIdentify::mcu;
+if (sizeof(mcu)==0){
+  mcu="N.A,";
+}
+
+if(sendString(mcu)==-1){
   ++counterBoard;
 listen_PC_Start();        
 return false;
@@ -652,7 +699,6 @@ boolean sendStatus() {
 
   AVAILABLE= false;
   
-  while(true){
     
   if (counterSend>COM_ATTEMPTS){
       AVAILABLE=false;
@@ -846,18 +892,14 @@ boolean sendStatus() {
   // CONPUTER CAN SEND WAIT AND RECEIVED
 
         receivedAction= receiveChar();
+     
         if (receivedAction==-1){
          ++counterSend;
         listen_PC_Start();       
         return false;
-        break;
         }
+        
         while (receivedAction==WAIT){
-        }
-        if (receivedAction==RESEND) {
-         ++counterSend;
-        listen_PC_Start();       
-        return false;
         }
       
       if(receivedAction!=RECEIVED){
@@ -878,7 +920,7 @@ boolean sendStatus() {
    AVAILABLE=true;
   return true;
   }
-}
+
 
 int counterReceived=0;      
 
@@ -907,7 +949,6 @@ int counterRegisterPWM=0;
 int counterRegisterServo=0;
 AVAILABLE=false;
 
-while(true){
 
 AVAILABLE=false;
 
@@ -921,6 +962,8 @@ AVAILABLE=false;
         listen_PC_Start();       
         return false;
       }
+ else{
+ AVAILABLE = true;
 
 }
    
@@ -1082,12 +1125,12 @@ if (pastTime <0){
   pastTime=4294967295-prevtimeUpdate + timetoUpdate; // overflow value - previous time + time from cero to present
 }
 
-int intpastTime= int(pastTime *1000*100); // 100 to increase precision
+int intpastTime= int(pastTime*100/1000); // 100 to increase precision
 
 while (intpastTime < (TIME_UPDATE*100) ){
   prevtimeUpdate= millis();
   pastTime= timetoUpdate - prevtimeUpdate;
-  intpastTime= int(pastTime *1000*100);
+  intpastTime= int(pastTime*100/1000);
   
 if (pastTime <0){
   pastTime=4294967295-prevtimeUpdate + timetoUpdate; // overflow value - previous time + time from cero to present
@@ -1095,7 +1138,7 @@ if (pastTime <0){
     
 receivedAction= receiveChar();
 
-  if (receivedAction<=0){
+  if (receivedAction<0){
     AVAILABLE = true;
     break;
   }
@@ -1139,7 +1182,7 @@ if (AVAILABLE){
 } 
 }
 
-// THESE ARE FUNCTIONS TO SAVE INFO IN THE REGISTERS, I AM NOT ACTUALLY USE THEM FOR NOW.
+// THESE ARE FUNCTIONS TO SAVE INFO IN THE REGISTERS.
 
 void newServo(int pin, int value){  
   for (int i=0; i<sizeof(pinForPWM); ++i){
