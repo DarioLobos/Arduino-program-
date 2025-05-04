@@ -85,7 +85,7 @@ const int PC_CONTROL_MODE= OUTPUT;
  
  
  
-  //-----------------SERIAL TRANSFER PART -----------------
+ //-----------------SERIAL TRANSFER PART -----------------
 
 /* THIS CODE IS FROM THE CHIP ATMEGA DATASHEET
  ^ UBRROH, UBRR0H ARE REGISTERS FOR BAUTRATE
@@ -111,9 +111,10 @@ const int PC_CONTROL_MODE= OUTPUT;
 
 // PARITY NEEDS MANUAL CONFIGURATION OF COMPUTER CONTROLLER, TO AVOID THIS I CHOOSE NONE PARITY
 #define ASYNCHRONOUS (0<<UMSEL00)
-#define PARITY_MODE (0<<UPM00) // NON PARITY MODE,  EVEN=2 ODD=3
+#define PARITY_MODE (2<<UPM00) // NON PARITY MODE,  EVEN=2 ODD=3
 #define STOP_BIT (0<<USBS0) // ONE STOP BIT, TWO STOP BITS =1
-#define DATA_BIT (3<<UCSZ00) // EIGHT BITS, FIVE BITS=0, SIX BITS=1, SEVEN BITS =2
+#define DATA_BIT (3<<UCSZ00) // NINE BIT= 7, EIGHT BITS=3, FIVE BITS=0, SIX BITS=1, SEVEN BITS =2, 
+// NINE BITS FOR PARITY 
 
 void initSerial(void){
 
@@ -162,9 +163,9 @@ int intpastTime;
 
       }
     
-//  if ( UCSR0A & (1<<4)|(1<<3)|(1<<2) ){   // 4= FRAME ERROR 3= OVERRUN ERROR 2= PARITY ERROR
-//return -1;
-//}
+// if ( UCSR0A & (1<<4)|(1<<3)|(1<<2) ){   // 4= FRAME ERROR 3= OVERRUN ERROR 2= PARITY ERROR
+// return -1;
+// }
   return UDR0;  // THIS IS THE BUFFER 3 BYTES REGISTER TO SEND/RECEIVE DATA 
 }
 
@@ -198,13 +199,12 @@ int intpastTime;
 
 
 int sendString(String literal){
-  
-  char* StringPtr = literal[0];
-  while (*StringPtr != 0x00){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
-    if (sendChar(*StringPtr)==-1){
+  char * msgchar = & literal[0];
+while (*msgchar != char('\0')){ // HERE THE TRANSMISSION FINISHES IN A NULL CHARACTER CAN BE CHANGED
+    if (sendChar(*msgchar)==-1){
       return -1;
-    StringPtr++;
-    }    
+    }
+    msgchar ++;    
   }
   return 1;
 
@@ -223,11 +223,9 @@ while ( UCSR0A & (1<<RXC0) ){
 }
 
 // THIS DISSABLED RECEIVER AND TRANSMITTER
-  UCSR0B &= ~((1<<RXEN0) | (1<<RXEN0));
+  UCSR0B &= ~((1<<RXEN0) | (1<<TXEN0));
 
 }
-
-
 
 
 const char SEND_STATUS=17; // THIS IS THE IDENTIFIER OR FALSE ADDREESS TO REQUEST ALL PINS STATUS
@@ -1113,7 +1111,6 @@ boolean listen_PC_Start(){
  *  try catch for the case of wire get disconnected in the middle of
  *  a transmission to don't let program crack for an exception 
  */ 
-flush();
 
 unsigned long timetoUpdate = millis();
 
@@ -1138,7 +1135,7 @@ if (pastTime <0){
     
 receivedAction= receiveChar();
 
-  if (receivedAction<0){
+  if (receivedAction>0){
     AVAILABLE = true;
     break;
   }
@@ -1155,31 +1152,38 @@ if (AVAILABLE){
    }
 
    if (receivedAction==BOARD_INFO) {
-    if(!(boardInfo())){
+    if(boardInfo()==false){
+      sendChar('f');
       return false;
     }
     else{
+    flush();  
     return true;
    }
    }
 
    if (receivedAction==PC_REGISTERS_UPDATE) {
-    if(!(receiveData())){
+    if(receiveData()==false){
       return false;
     }
     else{
+     flush();
     return true;
    }
    }
 
   if (receivedAction==SEND_STATUS) 
-    if(!(sendStatus())){
+    if(sendStatus()==false){
       return false;
     }
     else{
+    flush();  
     return true;
    }
-} 
+}
+else{
+  return false; 
+}
 }
 
 // THESE ARE FUNCTIONS TO SAVE INFO IN THE REGISTERS.
@@ -1551,22 +1555,23 @@ for (int i=0; i<ROW ;i++){
 
 // initialize the PC control pin as an output:
   pinMode(PC_CONTROL_PIN, PC_CONTROL_MODE);
+  digitalWrite(PC_CONTROL_PIN,LOW);
 
- // Set the clock to run-mode, and disable the write protection
+//  Set the clock to run-mode, and disable the write protection
   rtc.halt(false);
   rtc.writeProtect(true);
   
-char keymap[19] = "123A456B789C*0#DNF";  // N = NoKey, F = Fail
+//char keymap[19] = "123A456B789C*0#DNF";  // N = NoKey, F = Fail
 
-  Wire.begin( );
-  Wire.setClock(400000);
-   if (keyPad.begin() == false)
-  {
-    lcd.print("cannot communicate to keyPad.Please reboot");
-    lcd.display();
-    while (1);
-  }             
-  keyPad.loadKeyMap(keymap);
+//  Wire.begin( );
+//  Wire.setClock(400000);
+//   if (keyPad.begin() == false)
+//  {
+//    lcd.print("cannot communicate to keyPad.Please reboot");
+//    lcd.display();
+//    while (1);
+//  }             
+//  keyPad.loadKeyMap(keymap);
  
 // LCD display 16 x 2 configuration 
   lcd.begin(numCols, numRows);
@@ -1616,16 +1621,26 @@ mcp.pinMode(MCP_PIN15, OUTPUT); // PIN FOR RESET
 initSerial();
 
 
+
 }
 
+int a =0;
 void loop(){
+
   
   while (PC_CONTROL_STATE == LOW) {
 
+  if(listen_PC_Start()==true){
+ 
+ PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
+
+  digitalWrite(MOSFET_1_PIN,HIGH);
+  digitalWrite(MOSFET_2_PIN,HIGH);
+  digitalWrite(MOSFET_3_PIN,HIGH);
+
+   
+ }
     
-digitalWrite(MOSFET_1_PIN,HIGH);
-digitalWrite(MOSFET_2_PIN,HIGH);
-digitalWrite(MOSFET_3_PIN,HIGH);
 
     
 //-----------------------------------
@@ -1640,7 +1655,7 @@ device2ChargerRead= analogVoltageConvertion(newAnalogRead(DEVICE_CHARGER_VOLTAGE
 device3ChargerRead= analogVoltageConvertion (newAnalogRead(DEVICE_CHARGER_VOLTAGE_3),VOLTS_FACTOR_IN_OP);
 PHOTO_RESISTOR_READ = newAnalogRead(PHOTO_RESISTOR);
   
-while (batteryState <  BAT_FULL_VOLTS) {
+if ((batteryState>0) & batteryState <  BAT_FULL_VOLTS) {
 
 mosfet1Signal = analogConvertionToWrite(device1ChargerRead,CHARGER_VOLTS_1); // I ONLY HAVE ONE DEVICE UP TO NOW
 mosfet2Signal = analogConvertionToWrite(device2ChargerRead,CHARGER_VOLTS_2);
@@ -1684,10 +1699,6 @@ newAnalogWrite(MOSFET_3_PIN,mosfet3Signal); // SIGNAL FOR WIND GENERATOR
 
 }
 
-if(listen_PC_Start()==true){
- PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
-
-}
 
 lcdMessage (LCD_FULL_BATTERY,FULL_LENGHT, batteryState );
 
@@ -1698,10 +1709,10 @@ while (PC_CONTROL_STATE== HIGH) {
 //
 // pc program that will be only call back process and read check.
 
-if(listen_PC_Start()==true){
- PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
+//if(listen_PC_Start()==true){
+// PC_CONTROL_STATE = digitalRead(PC_CONTROL_PIN);
 
-}
+//}
 }
 // reset is necessary because the computer
 // can change pins or ports and modes of operation  so is necessary hardware with a jumper and reset pin.

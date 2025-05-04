@@ -19,6 +19,7 @@ import time
 from time import sleep
 import ttkbootstrap as ttk
 from tkinterPdfViewer import tkinterPdfViewer as pdf
+import struct
 
 # Define analog ports as in pins_arduino.h 
 # define PIN_A0   (14)
@@ -299,7 +300,7 @@ PC_CONTROL_STATE =0
 
 
 
-# Define port type
+# Define port default
 arduinoPort = 'COM1' # Down in the code will have the choise for change, this is default
 
 #_____________________________________________________________________#
@@ -307,6 +308,7 @@ arduinoPort = 'COM1' # Down in the code will have the choise for change, this is
 #                           SERIAL PROTOCOL                           #
 #_____________________________________________________________________#
 #
+
 ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
 
 
@@ -332,80 +334,119 @@ TIME_SAVE = 15 # THIS ARE THE MINUTES TO SAVE THE FILE DATA.
 AVAILABLE = True;  # THIS IS THE FLAG TO DETERMINE UNAVAILABLE STATE;
 
 
-attempt_counter=0
-def receiveBoardInfo(serialscan):
+counterboard=0
+countport=0
+
+def receiveBoardInfo():
     print("BoardInfo")
-    global attempt_counter    
+    global ser, counterboard, COM_ATTEMPTS, countPort, BOARD_INFO, TIME_UPDATE
+    
+    AVAILABLE =False
+
+    arduinoDict = dict()
     starttimer = time.perf_counter() 
-
-    if (attempt_counter>COM_ATTEMPTS):
+    portlist = serial.tools.list_ports.comports()
+    d = len(portlist)
+    if (counterboard>COM_ATTEMPTS):
+        print("counter Boardinfo full")
         AVAILABLE=False
         serialscan.close()
-        attempt_counter=0
+        counterboard=0
         return None
 
-    attempt_counter= attempt_counter +1
-    
-    try:
-        print("Try")
-        serialscan.open()
-        serialscan.write(BOARD_INFO)
-        answer_sending = ser.read(1)
-        while(True):
-            nexttimer = time.perf_counter()
-            elapsedtime =  nexttimer - starttimer
-            serialscan.write(BOARD_INFO)
-            answer_sending = ser.read(1)
-            if (answer_sending==BOARD_INFO):
-                AVAILABLE=True
-                break
-            if ((int(elapsedtime*1000)) > (int(TIME_UPDATE)*1000)):  # * 1000 to improve precision
-                AVAILABLE=False
-                serialscan.close()
-                receiveBoardInfo(serialscan)
-                return None
-                break;
-    except:
-        print("execpt")
-        AVAILABLE=False
-        serialscan.close()
-        receiveBoardInfo(serialscan)
-        return None
-    else:
-        AVAILABLE=True
+    p=0
+    while(p<d):
 
-    if (attempt_counter>COM_ATTEMPTS):
+
+        if portlist[p].name!=None or portlist[p].name!="":
+                stringdevice = str(portlist[p].name)
+                print(f'[port= {stringdevice}')
+                serialscan =serial.Serial(port= stringdevice , baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+                serialscan.flush()
+                p= p + 1
+                sleep(1)
+                print(f'serialScan = {serialscan}')
+                try:
+                        print(f'try')
+                        nexttimer = time.perf_counter()
+                        elapsedtime =  nexttimer - starttimer
+                        serialscan.write(struct.pack('B',BOARD_INFO))
+                        sleep(1)
+                        answer_sending = struct.unpack('B',serialscan.read())[0]
+                        print(f'answer_sending = {answer_sending}')
+                        if (answer_sending==BOARD_INFO):
+                                print(f'if answer_sending == boardinfo {answer_sending}')
+                                AVAILABLE=True
+                                break
+                        if ((int(elapsedtime*1000)) > (int(TIME_UPDATE)*1000)):  # * 1000 to improve precision
+                                serialscan.close()
+                                print("time out boardinfo")
+                                return None
+                                break;
+                        answer_sending=None
+                        serialscan.flush()
+                except:
+                                serialscan.close()
+                                print("except")
+                finally:
+                        
+                                pass
+                        
+        
+    if (counterboard>COM_ATTEMPTS):
             print("exit finally")
-            attempt_counter=0
+            serialscan.close()
+            counterboard=0
             return None
-    
 
+    sync= False
+        
     if (AVAILABLE):
+        boardInfoType = serialscan.readline()
+        print(f'type= {boardInfoType}')
         try:
-                boardInfoType = ser.readline()
-                boardInfoMake = ser.readline()
-                boardInfoModel = ser.readline()
-                boardInfoMCU = ser.readline()
-                boardDictionary = dict([('Type', boardInfoType),('Make', boardInfoMake),('Model', boardInfoModel),('MCU', boardInfoMCU)])
-                answer_sending=ser.read(1)
+                print("try reading board info data")
+                boardDictionary = dict([('Port', stringdevice), ('Type', "N.A."),('Make',"N.A."),('Model', "N.A."),('MCU', "N.A.")])
+                boardInfoType = serialscan.readline()
+                
+                if (boardInfoType is not None):
+                        boardDictionary['Type']= boardInfoType
+                        sync=True
+                boardInfoMake = serialscan.readline()
+                if (boardInfoMake is not None):
+                        boardDictionary['Make']= boardInfoMake
+                        sync=True
+                boardInfoModel = serialscan.readline()
+                if (boardInfoModel is not None):
+                        boardDictionary['Model']= boardInfoModel
+                        sync=True
+                boardInfoMCU = serialscan.readline()
+                if (boardInfoMCU is not None):
+                        boardDictionary['MCU']= boardInfoMCU
+                        sync=True
+                answer_sending=struct.unpack('B',serialscan.read())[0]
                 if(answer_sending!=END):
-                    serialscan.close()
-                    sendBoardInfo()
+                    serialscan.flush()
+                    sendBoardInfo(serialscan)
                     return None
                 else:
-                    serialscan.write(RECEIVED)            
+                    serialscan.write(struct.pack('B',RECEIVED))            
         except:
                 serialscan.close()
-                receiveBoardInfo(serialscan)
+                receiveBoardInfo()
                 return None
         else:
             serialscan.close()
-            return  boardDictionary 
+            if (sync):
+                return  boardDictionary
+            else:
+                receiveBoardInfo()
+                return None
         
-attempt_counter=0
+counterdata=0
 
 def receiveData():
-    global attempt_counter, COM_ATTEMPTS, PORTD, DDRD, PORTC, DDRC, PORTB, DDRB, arrayRead, pwmData, servoData, pwmRegisterB, pwmRegisterC, pwmRegisterD, servoRegisterB, servoRegisterC, servoRegisterD
+    global counterdata, COM_ATTEMPTS, PORTD, DDRD, PORTC, DDRC, PORTB, DDRB, arrayRead, pwmData, servoData, pwmRegisterB, pwmRegisterC, pwmRegisterD, servoRegisterB, servoRegisterC, servoRegisterD
     counter=0;
     receivedRawString= dict()
     receivedPWM = dict()
@@ -440,24 +481,25 @@ def receiveData():
     counterRegisterPWM=0
     counterRegisterServo=0
 
-    attempt_counter= attempt_counter +1
+    counterdata= counterdata +1
 
     starttimer = time.perf_counter() 
 
     try:
         print("try")
-        ser.open()
+        if not ser.is_open:
+                ser.open()
         print(f'{(attempt_counter>COM_ATTEMPTS)}')
-        if (attempt_counter>COM_ATTEMPTS):
+        if (counterdata>COM_ATTEMPTS):
                 print("exit try COM ATTEMPY")
                 ser.close()
                 return -1
         while(True):
-            print("while ser writw")
-            ser.write(SEND_STATUS)
+            print("while ser write")
+            ser.write(struct.pack('B',SEND_STATUS))
             nexttimer = time.perf_counter()
             elapsedtime =  nexttimer - starttimer
-            if((ser.read(1)==SEND_STATUS)):
+            if((struct.unpack('B',ser.read())[0]==SEND_STATUS)):
                 AVAILABLE= True
                 break;
             if ((int(elapsedtime*1000)) > (int(TIME_UPDATE)*1000)):  # * 1000 to improve precision
@@ -470,12 +512,12 @@ def receiveData():
         
     except:
         print("except")
-        attempt_counter= attempt_counter + 1 
+        counterdata= counterdata + 1 
         ser.close()
         print("except after close ")
-        if (attempt_counter<COM_ATTEMPTS):
+        if (counterdata<COM_ATTEMPTS):
             AVAILABLE=False
-            print("counter: " + f'{attempt_counter}')
+            print("counter: " + f'{counterdata}')
             receiveData()
             return -1
         print("else")
@@ -487,14 +529,14 @@ def receiveData():
         
     if (attempt_counter>COM_ATTEMPTS):
             print("exit finally")
-            attempt_counter=0
+            counterdata=0
             return -1
             
     
     if (AVAILABLE):
         while(AVAILABLE):
             try:
-                receivedRawString[f'{counter}']=ser.read(1)
+                receivedRawString[f'{counter}']=struct.unpack('B',ser.read())[0]
                 if(counter > 0):
                     if(receivedRawString[f'{counter}']==END & receivedRawString[f'{counter-1}']==CHRNULL):
                           counter=0
@@ -505,10 +547,11 @@ def receiveData():
                 ser.close()
                 receiveData()
                 return -1
+                break
 
         if (receivedRawString[f'12']!=CHRNULL | receivedRawString[f'13']!=IS_ANALOG_READ):
             ser.flush()
-            ser.write(RESEND)
+            ser.write(struct.pack('B',RESEND))
             ser.close()
             receiveData()
             return -1
@@ -555,8 +598,7 @@ def receiveData():
     
         if (counterArrayRead!=counterDDRDArrayRead | counterPWM!=counterRegisterPWM | counterServo!=counterRegisterServo):
             try:
-                ser.flush()
-                ser.write(RESEND)
+                ser.write(struct.pack('B',RESEND))
                 ser.close()
                 AVAILABLE=False
                 receiveData()
@@ -568,10 +610,9 @@ def receiveData():
                 receiveData()
                 return -1
 
-        ser.write(RECEIVED)
-        ser.flush()
+        ser.write(struct.pack('B',RECEIVED))
         ser.close()
-        attempt_counter=0
+        counterdata=0
 
         PORTD = bufferPortD
         DDRD = bufferDDRD
@@ -635,28 +676,30 @@ def receiveData():
             
 # THIS IS THE FUNCTION TO SEND BOARD ACTIONS          
 
-attempt_counter=0
+counterupdate=0
 def sendBoardUpdate():
     print("BoardUpdate")
-    global attempt_counter
+    global counterupdate, COM_ATTEMPTS
 
-    if (attempt_counter>COM_ATTEMPTS):
+    if (counterupdate>COM_ATTEMPTS):
         ser.close()
-        attempt_counter=0
+        counterupdate=0
         AVAILABLE=False
         return -1
         print("Comattempt")
 
-    attempt_counter = attempt_counter + 1
+    counterupdate = counterupdate + 1
     starttimer = time.perf_counter() 
 
     try:
-        ser.open()
+        if not ser.is_open:
+                ser.open()
 
         while(True):
-                ser.write(PC_REGISTERS_UPDATE)
+                ser.write(struct.pack('B',PC_REGISTERS_UPDATE))
                 print("write PCREGISTER UPDATE")
-                resivedAction=ser.read(1)
+                receivedAction=struct.unpack('B',ser.read())[0]
+                print(f'first received Action while = {receivedAction}')
                 nexttimer = time.perf_counter()
                 elapsedtime =  nexttimer - starttimer
                 if(receivedAction==PC_REGISTERS_UPDATE):
@@ -675,55 +718,55 @@ def sendBoardUpdate():
     else:
         AVAILABLE=True
 
-    if (attempt_counter>COM_ATTEMPTS):
+    if (counterupdate>COM_ATTEMPTS):
         print("COM ATTMPT IF")
         ser.close()
-        attempt_counter=0
+        counterupdate=0
         return -1
 
 
     if (AVAILABLE):    
         try:
-            ser.write(PORTD)
-            ser.write(DDRD)
-            ser.write(pwmRegisterD)
-            ser.write(servoRegisterD)
-            ser.write(PORTC)
-            ser.write(DDRC)
-            ser.write(pwmRegisterC)
-            ser.write(servoRegisterC)
-            ser.write(PORTB)
-            ser.write(DDRB)
-            ser.write(pwmRegisterB)
-            ser.write(servoRegisterB)      
+            ser.write(struct.pack('B',PORTD))
+            ser.write(struct.pack('B',DDRD))
+            ser.write(struct.pack('B',pwmRegisterD))
+            ser.write(struct.pack('B',servoRegisterD))
+            ser.write(struct.pack('B',PORTC))
+            ser.write(struct.pack('B',DDRC))
+            ser.write(struct.pack('B',pwmRegisterC))
+            ser.write(struct.pack('B',servoRegisterC))
+            ser.write(struct.pack('B',PORTB))
+            ser.write(struct.pack('B',DDRB))
+            ser.write(struct.pack('B',pwmRegisterB))
+            ser.write(struct.pack('B',servoRegisterB))      
     
     # SEND PWM INFO
-            ser.write(CHRNULL)
-            ser.write(IS_PWM)
+            ser.write(struct.pack('B',CHRNULL))
+            ser.write(struct.pack('B',IS_PWM))
 
             if (pwmData != prevpwmData):
                 for i in range(ROW):
                     if (pwmData[f'{i}']!= 0): 
                         if (pwmData[f'{i}']!= prevpwmData[f'{i}']): 
-                            ser.write(chr(pwmData[f'{i}']));
+                            ser.write(struct.pack('B',pwmData[f'{i}']))
 
 # SEND SERVO INFO
-            ser.write(CHRNULL)                
-            ser.write(IS_SERVO)
+            ser.write(struct.pack('B',CHRNULL))                
+            ser.write(struct.pack('B',IS_SERVO))
 
             if (servoData != prevservoData):
                 for i in range(ROW):
                     if (servoData[f'{i}']!= 0): 
                         if (servoData[f'{i}']!= prevservoData[f'{i}']):
-                            ser.write(servoData[f'{i}'])
+                            ser.write(struct.pack('B',servoData[f'{i}']))
 
-            ser.write(CHRNULL)
-            ser.write(END)
+            ser.write(struct.pack('B',CHRNULL))
+            ser.write(struct.pack('B',END))
 
 # ASK RECEIVED FROM ARDUIND
     
     
-            resivedAction=ser.read(1)
+            resivedAction=struct.unpack('B',ser.read())[0]
             while (receivedAction==WAIT):
                 pass
             if (receivedAction==RESEND):
@@ -731,13 +774,11 @@ def sendBoardUpdate():
                         sendBoardUpdate()
                         return -1
             if (receivedAction!=RECEIVED):
-                resivedAction=ser.read(1)
-                while (receivedAction==WAIT):
-                    pass
-                    if (receivedAction==RESEND):
-                        ser.close()
-                        sendBoardUpdate()
-                        return -1
+                        resivedAction=struct.unpack('B',ser.read())[0]
+                        if (receivedAction!=RECEIVED):
+                                ser.close()
+                                sendBoardUpdate()
+                                return -1
         except:
                 ser.close()
                 sendBoardUpdate()
@@ -877,47 +918,34 @@ def dirFile():
 
 
 arduinoLabel=StringVar() # String label for board detected
-countport=0
+
 def scanPort():
-    global ser, arduinoPort, arduinoLabel, countport
+        global ser, arduinoPort, arduinoLabel
 
-    ser.close()
-    arduinoDict = dict()
-    portlist = serial.tools.list_ports.comports()
-    d = len(portlist)
-    if (d >0):
-        while(True):
-            if (countport < d):
-                if portlist[countport].name!=None or portlist[countport].name!="":
-                    stringdevice = str(portlist[countport].name)
-                    try: 
-                        serialScan =serial.Serial(port=stringdevice,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
-                        arduinoDict = receiveBoardInfo(serialScan)
-                    except:
-                        countport= countport +1
-                        scanPort()
-                        break
-                    finally:
-                        if arduinoDict is not None:
-                            arduinoPort = stringdevice
-                            portVar.set(arduinoPort)
-                            arduinoLabel.set(f'Port detected= {arduinoPort} , Boar Info: Type = {arduinoDict["Tyoe"]}, Make = {arduinoDict["Make"]}, Model = {arduinoDict["MODEL"]}, MCU = {arduinoDict["MCU"]}')
-                            ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
-                            oountport=0
-                            break
-                        else:
-                            countport= countport +1
-                            scanPort()
-                            break
+        ser.close()
+        
+        arduinoDict = dict()
 
-            else:
-                    arduinoLabel.set("BOARD NOT DETECTED, CHECK CONNECTION")
-                    countport=0
-                    break
-    else:
-                arduinoLabel.set("PORTS NOT DETECTED, CHECK PORT SETTINGS OR PERMISSIONS TO CAN SCAN")
-                countport=0
-                
+        portlist = serial.tools.list_ports.comports()
+        d = len(portlist)
+
+        if (d >0):
+
+                arduinoDict = receiveBoardInfo()
+        
+                if arduinoDict is not None:
+                        arduinoPort = arduinoDict['Port']
+                        portVar.set(arduinoPort)
+                        type =  arduinoDict['Type']
+                        make =  arduinoDict['Make']
+                        model= arduinoDict['Model']
+                        MCU = arduinoDict['MCU']
+                        arduinoLabel.set(f'Port detected= {arduinoPort} , Board Info: Type = {type}, Make = {make}, Model = {model}, MCU = {MCU}')
+                        ser =serial.Serial(port=arduinoPort,baudrate=9600, bytesize= serial.EIGHTBITS, parity= serial.PARITY_EVEN,stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1)
+                        print(f'ser= {ser}')
+                        print("found")                
+        else:
+                arduinoLabel.set("BOARD NOT DETECTED, CHECK CONNECTION")
 
 def openHelp():
 
