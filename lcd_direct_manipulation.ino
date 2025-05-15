@@ -153,11 +153,20 @@ void operationMode(){
 
  PORTD = PORTD | B01110011 ; // LOW BITS OF ENTRY MODE CURSOR MOVES TO RIGHT AND ADDRESS INCREMENT BY 1 EACH STEP
 
-delay(0.05);
+ delay(0.05);
       
  PORTD = PORTD & B01000011 ; // HIGH BITS OF ENTRY MODE ALL CERO
 
-      delay(0.05);
+  delay(0.05);
+
+  PORTB = (PORTB & B01000011); // ENABLE=0 R/W=1
+
+  delay(0.05);
+  
+  PORTD = (PORTD | B00111100);   // PULL UP RESISTOR INPUT MODE 
+  
+  DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
+
 }
 
 void displayFirtLine (String text){
@@ -168,18 +177,18 @@ void displayFirtLine (String text){
 
     uint8_t center = (16 - (sizeof(text)-1))/2-1; // IN FIRST LINE DDRAM ADDRESS START IN CERO SO THIS WILL BE FIRS MEMORY POSITION
 
-      DDRB = (DDRB | B10000000) & B10111111 ; // ENABLE = OUTPUT, PIN 13 AND R/W=INPUT, PIN 12 TO READ BUSY FLAG
-      DDRD = (DDRD | B10111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
+    // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
-      PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
-      PORTD = (PORTD | B10000000);
-      
-      while (bitON(PORTD,6)){
-        // WAIT UNTIL BUSY FLAG IS 0
-      }
+    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTD = (PORTD & B01000011); 
+    DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
+ 
+    while (bitON(PORTD,5)){
+    // WAIT UNTIL BUSY FLAG IS 0
+    }
 
-      DDRB = (DDRB | B11000000); // ENABLE = OUTPUT, PIN 13 AND R/W=OUTPUT, PIN 12 TO WRITE DDRAM
-      PORTB = (PORTB | B10000000) & B10111111 ; // ENABLE=1 R/W=0
+    PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+    DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
 
       PORTD = ((PORTD | B00100000) & B01100011)| (center>>4)<<2 ; // RS= 0 D7=1 WRITE ADDRESSS OF START MEMORY HIGH BITS;
 
@@ -193,7 +202,20 @@ void displayFirtLine (String text){
       msgchar+=i;
       charBits [i][0] = uint8_t(msgchar) >>4;
       charBits [i][1] = (uint8_t(msgchar) <<4) >> 4;       
-          
+
+    // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
+
+    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTD = (PORTD & B01000011); 
+    DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
+ 
+    while (bitON(PORTD,5)){
+    // WAIT UNTIL BUSY FLAG IS 0
+    }
+
+    PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+    DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
+
  
       PORTD = (PORTD | B10000000) | charBits [i][0]<<2 ; // RS= 1 WRITE DATA HIGH BITS;
 
@@ -209,14 +231,12 @@ void displayFirtLine (String text){
 
      delay(0.05);
 
-     PORTB = (PORTB & B01000011); // ENABLE=0 R/W=1
-
-     delay(0.05);
-
      PORTD = (PORTD & B01000011); // DATA BUS LOW RS= 0;
 
      delay(0.05);
 
+     PORTD = PORTD | B00111100 ;   // PULL UP RESISTOR INPUT MODE 
+     DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
      
 }
 
@@ -228,18 +248,18 @@ void displaySecondLine (String text){
 
     uint8_t center = (16 - (sizeof(text)-1))/2+63 ; // IN SECOND LINE DDRAM ADDRESS START IN 40 HEXA OR 64 DECIMAL THIS WILL BE FIRS MEMORY POSITION
 
-      DDRB = (DDRB | B10000000) & B10111111 ; // ENABLE = OUTPUT, PIN 13 AND R/W=INPUT, PIN 12 TO READ BUSY FLAG
-      DDRD = (DDRD | B10111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
+  // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
-      PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
-      PORTD = (PORTD | B10000000);
-      
-      while (bitON(PORTD,6)){
-        // WAIT UNTIL BUSY FLAG IS 0
-      }
+    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTD = (PORTD & B01000011); 
+    DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
+ 
+    while (bitON(PORTD,5)){
+    // WAIT UNTIL BUSY FLAG IS 0
+    }
 
-      DDRB = (DDRB | B11000000); // ENABLE = OUTPUT, PIN 13 AND R/W=OUTPUT, PIN 12 TO WRITE DDRAM
-      PORTB = (PORTB | B10000000) & B10111111 ; // ENABLE=1 R/W=0
+    PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+    DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
 
      PORTD = ((PORTD | B00100000) & B01100011)| (center>>4)<<2 ; // RS= 0 D7=1 WRITE ADDRESSS OF START MEMORY HIGH BITS;
 
@@ -253,8 +273,20 @@ void displaySecondLine (String text){
       msgchar+=i;
       charBits [i][0] = uint8_t(msgchar) >>4;
       charBits [i][1] = (uint8_t(msgchar) <<4) >> 4;       
-          
+
+// THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
+
+    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTD = (PORTD & B01000011); 
+    DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
+    while (bitON(PORTD,5)){
+    // WAIT UNTIL BUSY FLAG IS 0
+    }
+
+    PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+    DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
+
       PORTD = (PORTD | B10000000) | charBits [i][0]<<2 ; // RS= 1 WRITE DATA HIGH BITS;
 
       delay(0.05);
@@ -272,6 +304,10 @@ void displaySecondLine (String text){
       PORTD = (PORTD & B01000011); // DATA BUS LOW RS= 0;
 
      delay(0.05);
+
+     PORTD = PORTD | B00111100 ;   // PULL UP RESISTOR INPUT MODE 
+     DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
+
 
 }
 
