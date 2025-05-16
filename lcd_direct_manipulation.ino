@@ -24,6 +24,24 @@ unsigned int counterBitON(uint8_t data){
     }
   return count;  
   }
+
+void delayMicros(int micros) {
+
+unsigned long start= micros();
+unsigned long now;
+int elapsed;
+
+while(elapsed < micros){
+// stop delayed micros
+now = micros();
+elapsed= int (now - start);
+if (elapsed < 0) { // overflow control 
+
+elapsed = int (now + 4294967295 - start);
+
+}
+
+}
 /*
  * The circuit:
  * LCD RS pin to digital pin 7
@@ -36,7 +54,7 @@ unsigned int counterBitON(uint8_t data){
  * LCD VSS pin to ground
  * LCD VCC pin to 5V
 * ends to +5V and ground
- * VO is contrast to a potenciomenter 100 ohm t0 Vcc 220 ohm rersitor to ground
+ * VO is contrast to a potenciomenter 100 ohm + 220 ohm to ground  2 parallel 1 kohm to Vcc 220 Vo ≈ 1 volt (can be higher resistors divider )
 */
 
 // PINS 2,3,4,5,7 ARE PORTD AND DDRD 
@@ -96,47 +114,47 @@ unsigned int counterBitON(uint8_t data){
 void operationMode(){
 
  DDRD = (DDRD | B10111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
- DDRB = (DDRB | B11000000); // ENABLE = OUTPUT, PIN 13 AND R/W=OUTPUT, PIN 12 
+ DDRB = (DDRB | B00110000); // ENABLE = OUTPUT, PIN 13 AND R/W=OUTPUT, PIN 12 
 
   delay(50); // minimun delay is 40 
 
   // FIRST FUNCTION SET
- PORTB = (PORTB | B10000000) & B10111111 ; // ENABLE=1 R/W=0
+ PORTB = (PORTB | B00100000) & B11101111 ; // ENABLE=1 R/W=0
  PORTD = (PORTD | B00001100) & B01111111 ; // RS=0 D5=1 D4=1
   delay(4); // minimun 2,37
   
  PORTD = (PORTD | B00001000) & B01111011 ; // DEFINE 4 BITS OPERATION
-  delay(0.1); // minimun 0.054;
+  delayMicros(100); // minimun 0.054;
 
  PORTD = (PORTD | B00110000) & B11110011 ; // NEXT LOW BITS TO DEFINE OPERATION D7= 1 TWO LINES D6= 1 SET BIAS RESISTORS
- delay(0.05);
+ delayMicros(50);
 
  PORTD = PORTD & B01000011 ; // HIGH BITS FOR BIAS RESISTORS ALL 0
- delay(0.05);
+ delayMicros(50);
 
  PORTD = PORTD | B00000100 ; // LOW BITS FOR BIAS RESISTORS ALL 01 2.2K 10 6.8 K 11 9K
 
- delay(0.05);
+ delayMicros(50);
 
  PORTD = (PORTD & B01000011); // DISPLAY ON CURSOR OFF HIGH  BITS 0 (PIN 6 IS RESERVED FOR PWM, PIN 0 AND 1 ARE SERIAL)
  
- delay(0.05);
+ delayMicros(50);
 
  PORTD = (PORTD | B00110011); // DISPLAY ON CURSOR OFF LOW BITS D3=1 D3=2 DISPLAY ON D1=1 CURSOR OFF D0= FONT 1 
 
-  delay(0.05);
+  delayMicros(50);
 
  PORTD = (PORTD | B00011000) & B01111011 ; // DISPLAY CLEAR HIGH  BITS D6=1 D5=1
  
- delay(0.05);
+ delayMicros(50);
 
  PORTD = (PORTD | B00000100) & B01000111 ; //  DISPLAY CLEAR LOW  BITS D6=1 D5=1
 
-  delay(0.05);
+  delayMicros(50);
 
 // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
- PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+ PORTB = (PORTB | B00110000); // ENABLE=1 R/W=1
  PORTD = (PORTD & B01000011); 
  DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
@@ -144,24 +162,24 @@ void operationMode(){
  // WAIT UNTIL BUSY FLAG IS 0
  }
 
- PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+ PORTB = (PORTB & B1110111); // ENABLE=1 R/W=0
  DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
 
  PORTD = PORTD & B01000011 ; // HIGH BITS OF ENTRY MODE ALL CERO
 
- delay(0.05);
+ delayMicros(50);
 
  PORTD = PORTD | B01110011 ; // LOW BITS OF ENTRY MODE CURSOR MOVES TO RIGHT AND ADDRESS INCREMENT BY 1 EACH STEP
 
- delay(0.05);
+ delayMicros(50);
       
  PORTD = PORTD & B01000011 ; // HIGH BITS OF ENTRY MODE ALL CERO
 
-  delay(0.05);
+  delayMicros(50);
 
-  PORTB = (PORTB & B01000011); // ENABLE=0 R/W=1
+  PORTB = (PORTB & B11011111) | B00010000; // ENABLE=0 R/W=1
 
-  delay(0.05);
+  delayMicros(50);
   
   PORTD = (PORTD | B00111100);   // PULL UP RESISTOR INPUT MODE 
   
@@ -179,7 +197,7 @@ void displayFirtLine (String text){
 
     // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
-    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTB = (PORTB | B00110000); // ENABLE=1 R/W=1
     PORTD = (PORTD & B01000011); 
     DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
@@ -187,16 +205,16 @@ void displayFirtLine (String text){
     // WAIT UNTIL BUSY FLAG IS 0
     }
 
-    PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+    PORTB = (PORTB & B11101111); // ENABLE=1 R/W=0
     DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
 
       PORTD = ((PORTD | B00100000) & B01100011)| (center>>4)<<2 ; // RS= 0 D7=1 WRITE ADDRESSS OF START MEMORY HIGH BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       PORTD = (PORTD & B01000011)| ((center<<4)>>4)<<2 ; // RS= 0 WRITE ADDRESSS OF START MEMORY LOW BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       for (int i=0; i<sizeof(text)-1; i++){
       msgchar+=i;
@@ -205,7 +223,7 @@ void displayFirtLine (String text){
 
     // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
-    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTB = (PORTB | B00110000); // ENABLE=1 R/W=1
     PORTD = (PORTD & B01000011); 
     DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
@@ -213,27 +231,27 @@ void displayFirtLine (String text){
     // WAIT UNTIL BUSY FLAG IS 0
     }
 
-    PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+    PORTB = (PORTB & B11101111); // ENABLE=1 R/W=0
     DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
 
  
       PORTD = (PORTD | B10000000) | charBits [i][0]<<2 ; // RS= 1 WRITE DATA HIGH BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       PORTD = (PORTD | B10000000)| charBits [i][1]<<2 ; // RS= 1 D7=1 WRITE DATA LOW BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       }
 
-      PORTB = (PORTB & B01000011); // ENABLE=0 R/W=1
+      PORTB = (PORTB & B11011111) | B00010000; // ENABLE=0 R/W=1
 
-     delay(0.05);
+     delayMicros(50);
 
      PORTD = (PORTD & B01000011); // DATA BUS LOW RS= 0;
 
-     delay(0.05);
+     delayMicros(50);
 
      PORTD = PORTD | B00111100 ;   // PULL UP RESISTOR INPUT MODE 
      DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
@@ -250,7 +268,7 @@ void displaySecondLine (String text){
 
   // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
-    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTB = (PORTB | B00110000); // ENABLE=1 R/W=1
     PORTD = (PORTD & B01000011); 
     DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
@@ -263,11 +281,11 @@ void displaySecondLine (String text){
 
      PORTD = ((PORTD | B00100000) & B01100011)| (center>>4)<<2 ; // RS= 0 D7=1 WRITE ADDRESSS OF START MEMORY HIGH BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       PORTD = (PORTD & B01000011)| ((center<<4)>>4)<<2 ; // RS= 0 WRITE ADDRESSS OF START MEMORY LOW BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       for (int i=0; i<sizeof(text)-1; i++){
       msgchar+=i;
@@ -276,7 +294,7 @@ void displaySecondLine (String text){
 
 // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
-    PORTB = (PORTB | B11000000); // ENABLE=1 R/W=1
+    PORTB = (PORTB | B00110000); // ENABLE=1 R/W=1
     PORTD = (PORTD & B01000011); 
     DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
@@ -284,26 +302,26 @@ void displaySecondLine (String text){
     // WAIT UNTIL BUSY FLAG IS 0
     }
 
-    PORTB = (PORTB & B10111111); // ENABLE=1 R/W=0
+    PORTB = (PORTB & B11101111); // ENABLE=1 R/W=0
     DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
 
       PORTD = (PORTD | B10000000) | charBits [i][0]<<2 ; // RS= 1 WRITE DATA HIGH BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       PORTD = (PORTD | B10000000)| charBits [i][1]<<2 ; // RS= 1 D7=1 WRITE DATA LOW BITS;
 
-      delay(0.05);
+      delayMicros(50);
 
       }
 
-      PORTB = (PORTB & B01000011); // ENABLE=0 R/W=1
+      PORTB = (PORTB & B11011111) | B00010000; // ENABLE=0 R/W=1
 
-     delay(0.05);
+     delayMicros(50);
 
       PORTD = (PORTD & B01000011); // DATA BUS LOW RS= 0;
 
-     delay(0.05);
+     delayMicros(50);
 
      PORTD = PORTD | B00111100 ;   // PULL UP RESISTOR INPUT MODE 
      DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
