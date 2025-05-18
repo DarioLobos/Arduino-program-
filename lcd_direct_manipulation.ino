@@ -5,6 +5,9 @@
 // AND AN LCD 1602 WITH ST7070 CONTROLLER OR SIMILAR WITH
 // NO EXTERNAL RESISTOR FOR BIAS VOLTAGES SEEN IN THE BOARD
 // DARIO LOBOS 13/MAY/2025
+
+
+unsigned long s= micros();
   
 // THESE ARE BITWISE FUNCTION NEEDED TO HANDLE DATA 
 
@@ -22,16 +25,15 @@ unsigned int counterBitON(uint8_t data){
       data &= (data-1); 
       count++;
     }
-u  return count;  
+  return count;  
   }
+  
+void delayMicros(int micro){
+  unsigned long start= micros();
+  unsigned long now = micros();
+int elapsed=  int (now - start);
 
-void delayMicros(int micros) {
-
-unsigned long start= micros();
-unsigned long now;
-int elapsed;
-
-while(elapsed < micros){
+while(elapsed < micro ){
 // stop delayed micros
 now = micros();
 elapsed= int (now - start);
@@ -42,6 +44,10 @@ elapsed = int (now + 4294967295 - start);
 }
 
 }
+
+}
+
+
 /*
  * The circuit:
  * LCD RS pin to digital pin 7
@@ -116,69 +122,111 @@ void operationMode(){
  DDRD = (DDRD | B10111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
  DDRB = (DDRB | B00110000); // ENABLE = OUTPUT, PIN 13 AND R/W=OUTPUT, PIN 12 
 
-  delay(50); // minimun delay is 40 
-
   // FIRST FUNCTION SET
  PORTB = (PORTB | B00100000) & B11101111 ; // ENABLE=1 R/W=0
  PORTD = (PORTD | B00001100) & B01111111 ; // RS=0 D5=1 D4=1
- delayMicros(100); 
+ Serial.println(PORTB);
+ Serial.println(PORTD);
+  
+ delayMicros(120);
+  
  PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
-  delay(5); // minimun 2,37
+  delay(5); // minimun 4,1
  
  
  PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 Second set funcion same as first.
+Serial.println("First");
+ Serial.println(PORTB);
+ Serial.println(PORTD);
+ 
  delayMicros(120); 
 
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Second");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+ 
 delayMicros(120); 
 
  PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 third set funcion same as first.
+Serial.println("Third");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+ 
  delayMicros(120); 
 
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
 delayMicros(120); 
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = (PORTD | B00001000) & B01111011 ; // DEFINE 4 BITS OPERATION
+PORTD = (PORTD | B00001000) & B01001011 ; // DEFINE 4 BITS OPERATION
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("4 bit operation");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+ 
 delayMicros(120);
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = (PORTD | B00001000) & B01111011 ; // DEFINE 4 BITS OPERATION
+// DEFINE 4 BITS OPERATION SAME FIRST BITS
 delayMicros(120);  
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("4 bit operation 2");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
 PORTD = (PORTD | B00100000) & B11100011 ; // NEXT LOW BITS TO DEFINE OPERATION D7= 1 TWO LINES 
  delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("4 bit operation LOw");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = (PORTD & B01000011); // DISPLAY ON CURSOR OFF HIGH  BITS 0 (PIN 6 IS RESERVED FOR PWM, PIN 0 AND 1 ARE SERIAL)
+PORTD = (PORTD & B01000011); // DISPLAY ON CURSOR OFF HIGH  BITS 0 (PIN 6 IS RESERVED FOR PWM, PIN 0 AND 1 ARE Serial)
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Display on cursor off");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = (PORTD | B00110011); // DISPLAY ON CURSOR OFF LOW BITS D3=1 D3=2 DISPLAY ON D1=1 CURSOR OFF D0= FONT 1 
+PORTD = (PORTD | B00110000); // DISPLAY ON CURSOR OFF LOW BITS D3=1 D3=2 DISPLAY ON D1=1 CURSOR OFF D0= FONT 1 
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Display on cursor off LOW");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = (PORTD | B00011000) & B01111011 ; // DISPLAY CLEAR HIGH  BITS D6=1 D5=1
+
+PORTD = PORTD& B11000011 ; // DISPLAY CLEAR HIGH  ALL CERO
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Display claer");
+Serial.println(PORTB);
+ Serial.println(PORTD);
 delayMicros(120);
 
-PORTB = PORTB | B00100000 ; //
-PORTD = (PORTD | B00000100) & B01000111 ; //  DISPLAY CLEAR LOW  BITS D6=1 D5=1
+PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
+PORTD = (PORTD | B00000100); //  DISPLAY CLEAR LOW  BITS D6=1 D5=1
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Display clear LOW");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
 // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
@@ -190,10 +238,14 @@ delayMicros(120);
 
  while (bitON(PORTD,5)){
  // WAIT UNTIL BUSY FLAG IS 0
- PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+ PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=1
 delayMicros(120);
-PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
- 
+PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=1
+delayMicros(120);
+ Serial.println("busy flag");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 } 
 
 PORTB = (PORTB & B1110111); // ENABLE=1 R/W=0
@@ -202,18 +254,27 @@ DDRD = (DDRD | B00111100); // RS = OUTPUT, PIN 7  DATABITS OUTPUT, PINS 2,3,4,5
 PORTD = PORTD & B01000011 ; // HIGH BITS OF ENTRY MODE ALL CERO
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Entry mode");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = PORTD | B01110011 ; // LOW BITS OF ENTRY MODE CURSOR MOVES TO RIGHT AND ADDRESS INCREMENT BY 1 EACH STEP
+PORTD = PORTD | B01011011 ; // LOW BITS OF ENTRY MODE CURSOR MOVES TO RIGHT AND ADDRESS INCREMENT BY 1 EACH STEP
 delayMicros(120);
 PORTB = (PORTB & B11011111) | B00010000; // ENABLE=0 R/W=1
+Serial.println("Entry mode LOW");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
      
-PORTD = PORTD & B01000011 ; // HIGH BITS OF ENTRY MODE ALL CERO
+PORTD = PORTD & B01000011 ; // PUT DATA BUS IN CERO
 delayMicros(50);
 PORTD = (PORTD | B00111100);   // PULL UP RESISTOR INPUT MODE 
 DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
+
 
 }
 
@@ -229,13 +290,13 @@ void displayFirtLine (String text){
 
 PORTB = (PORTB | B00110000); // ENABLE=1 R/W=1
 PORTD = (PORTD & B01000011); 
-DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
 while (bitON(PORTD,5)){
 // WAIT UNTIL BUSY FLAG IS 0
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
 delayMicros(120);
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
+delayMicros(120);
  
 } 
 
@@ -251,6 +312,10 @@ delayMicros(120);
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0       
 PORTD = (PORTD & B01000011)| ((center<<4)>>4)<<2 ; // RS= 0 WRITE ADDRESSS OF START MEMORY LOW BITS;
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Memory address");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
 
@@ -267,10 +332,10 @@ charBits [i][1] = (uint8_t(msgchar) <<4) >> 4;
  
  while (bitON(PORTD,5)){
 // WAIT UNTIL BUSY FLAG IS 0
-PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=1
 delayMicros(120);
-PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
- 
+PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=1 
+delayMicros(120); 
 } 
 
 PORTB = (PORTB & B11101111); // ENABLE=1 R/W=0
@@ -282,15 +347,18 @@ PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
 delayMicros(120);
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = (PORTD | B10000000)| charBits [i][1]<<2 ; // RS= 1 D7=1 WRITE DATA LOW BITS;
+PORTD = ((PORTD | B10000000) & B11000011)| charBits [i][1]<<2 ; // RS= 1 D7=1 WRITE DATA LOW BITS;
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
+Serial.println("Chart ");
+Serial.println(PORTB);
+ Serial.println(PORTD);
+
 delayMicros(120);
 
       }
 
 PORTB = (PORTB & B11011111) | B00010000; // ENABLE=0 R/W=1
-delayMicros(50);
 PORTD = (PORTD & B01000011); // DATA BUS LOW RS= 0;
 delayMicros(50);
 PORTD = PORTD | B00111100 ;   // PULL UP RESISTOR INPUT MODE 
@@ -299,6 +367,9 @@ DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
 }
 
 void displaySecondLine (String text){
+
+
+
 
     char * msgchar = & text[0];
 
@@ -310,13 +381,13 @@ void displaySecondLine (String text){
 
 PORTB = (PORTB | B00110000); // ENABLE=1 R/W=1
 PORTD = (PORTD & B01000011); 
-DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
  
 while (bitON(PORTD,5)){
 // WAIT UNTIL BUSY FLAG IS 0
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
 delayMicros(120);
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
+delayMicros(120);
  
 } 
 
@@ -351,6 +422,7 @@ charBits [i][1] = (uint8_t(msgchar) <<4) >> 4;
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
 delayMicros(120);
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
+delayMicros(120);
  
 } 
 
@@ -363,7 +435,7 @@ PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
 delayMicros(120);
 
 PORTB = PORTB | B00100000 ; // ENABLE=1 R/W=0 
-PORTD = (PORTD | B10000000)| charBits [i][1]<<2 ; // RS= 1 D7=1 WRITE DATA LOW BITS;
+PORTD = ((PORTD | B10000000) & B11000011)| charBits [i][1]<<2 ; // RS= 1 D7=1 WRITE DATA LOW BITS;
 delayMicros(120);
 PORTB = PORTB & B11011111 ; // ENABLE=0 R/W=0
 delayMicros(120);
@@ -371,7 +443,6 @@ delayMicros(120);
       }
 
 PORTB = (PORTB & B11011111) | B00010000; // ENABLE=0 R/W=1
-delayMicros(50);
 PORTD = (PORTD & B01000011); // DATA BUS LOW RS= 0;
 delayMicros(50);
 PORTD = PORTD | B00111100 ;   // PULL UP RESISTOR INPUT MODE 
@@ -380,8 +451,10 @@ DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
 
 }
 
-
 void setup() {
+
+Serial.begin(9600);
+  
   operationMode();
 displayFirtLine ("Hola");
 displaySecondLine ("Es una prueba");
@@ -392,5 +465,7 @@ displaySecondLine ("Es una prueba");
 
 void loop() {
   // put your main code here, to run repeatedly:
+Serial.println("Loop ");
 
+delayMicros(120);
 }
