@@ -13,8 +13,8 @@ main.o:
 
 main.elf: main.o 
 
-avr-gcc -o main.elf blink.o 
+avr-gcc -o main.elf main.o 
 
-flash: sudo avrdude  ${AVRFLAGS} blink.hex 
+flash: sudo avrdude  ${AVRFLAGS} main.hex 
 
 clean: rm -rf *.o *.hex *.elf
