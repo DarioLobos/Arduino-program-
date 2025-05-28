@@ -359,7 +359,7 @@ DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
 
 }
 
-void displayFirtLine (char[] text){
+void displayFirtLine (char text[]){
 
     char * msgchar = & text[0];
 
@@ -436,7 +436,7 @@ DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
      
 }
 
-void displaySecondLine (char[] text){
+void displaySecondLine (char text[]){
 
     char * msgchar = & text[0];
 
