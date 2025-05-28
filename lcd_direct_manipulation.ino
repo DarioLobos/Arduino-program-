@@ -12,11 +12,11 @@
   
 // THESE ARE BITWISE FUNCTION NEEDED TO HANDLE DATA 
 
-void setBit( int& n,int pos){
+void setBit( uint8_t & n,uint8_t pos){
   n|=( 1<< pos );
 }
 
-boolean bitON( int n,int pos){
+boolean bitON( uint8_t n,uint8_t pos){
 return ( n & (1<<pos)!=0);
 }
 
@@ -30,41 +30,14 @@ unsigned int counterBitON(uint8_t data){
   }
   
 void delayMicros(int micro){
-  unsigned long start= micros();
-  unsigned long now = micros();
-int elapsed=  int (now - start);
-
-while(elapsed < micro ){
-// stop delayed micros
-now = micros();
-elapsed= int (now - start);
-if (elapsed < 0) { // overflow control 
-
-elapsed = int (now + 4294967295 - start);
-
-}
-
-}
+  _delay_us(micro);
 
 }
 
 void delayNanos(int nano){
-  unsigned long start= micros();
-  unsigned long now = micros();
-int elapsed=  int ((now - start)/1000) ;
-
-while(elapsed < nano ){
-// stop delayed micros
-now = micros();
-elapsed= int (now - start);
-if (elapsed < 0) { // overflow control 
-
-elapsed = int ((now + 4294967295 - start)/1000);
-
-}
-
-}
-
+  
+_delay_us(nano*1000);
+  
 }
 
 /*
@@ -386,7 +359,7 @@ DDRD = (DDRD & B11000011); // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
 
 }
 
-void displayFirtLine (String text){
+void displayFirtLine (char[] text){
 
     char * msgchar = & text[0];
 
@@ -424,8 +397,8 @@ delayNanos(500);
 
 for (int i=0; i<sizeof(text)-1; i++){
 msgchar+=i;
-charBits [i][0] = uint8_t(msgchar) >>4;
-charBits [i][1] = (uint8_t(msgchar) <<4) >> 4;       
+charBits [i][0] = uint8_t( *msgchar) >>4;
+charBits [i][1] = (uint8_t( *msgchar) <<4) >> 4;       
 
  // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
@@ -463,10 +436,7 @@ DDRD = DDRD & B11000011 ; // RS = OUTPUT, PIN 7  DATABITS INPUT, PINS 2,3,4,5
      
 }
 
-void displaySecondLine (String text){
-
-
-
+void displaySecondLine (char[] text){
 
     char * msgchar = & text[0];
 
@@ -504,8 +474,8 @@ delayNanos(200);
 
 for (int i=0; i<sizeof(text)-1; i++){
 msgchar+=i;
-charBits [i][0] = uint8_t(msgchar) >>4;
-charBits [i][1] = (uint8_t(msgchar) <<4) >> 4;       
+charBits [i][0] = uint8_t( *msgchar) >>4;
+charBits [i][1] = (uint8_t( *msgchar) <<4) >> 4;       
 
  // THIS IS TO CHECK BUSY FLAG BEFORE CONTINUE
 
