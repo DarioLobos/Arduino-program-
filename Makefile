@@ -10,7 +10,7 @@ lcd_direct_manipulation.elf: lcd_direct_manipulation.o
 	avr-gcc -o lcd_direct_mainpulation.elf lcd_direct_manipulation.o
 
 flash: 
-	avrdude -F -v -p atmega328p -b57600 -c arduino -P COM4 -U flash:w:lcd_direct_manipulation.hex:i
+	avrdude -F -v -p atmega328p -b57600 -c arduino -P COM4 -D -U flash:w:lcd_direct_manipulation.hex:i
 
 clean:
 	rm -rf *.o *.hex *.elf
